@@ -2,246 +2,201 @@
 
 **What it is:** A clinical workspace for dental students in training programs. Students manage their own patient panel, track treatment progress, log clinical procedures toward competency requirements, and stay on top of scheduling and follow-ups.
 
-**What it is not:** A faculty management tool. Remove admin roles, approval queues, and student-oversight features — those belong in a separate faculty console if needed later.
+**What it is not:** A faculty management tool. No admin roles, approval queues, or student-oversight features — those belong in a separate faculty console if needed later.
 
 ---
 
-## Cut These
+## ✅ Built (Phases 1–4)
 
-| Item | Why |
+All four phases from the original plan are complete.
+
+| Phase | What shipped |
 |---|---|
-| Admin / faculty view entirely | Wrong user. Student-only. |
-| Role toggle on login screen | Unnecessary once single-role. |
-| Approval queue | Faculty workflow, not student. |
-| Student clinicians table | Faculty oversight, not self-tracking. |
-| `StudentClinician` DB model | Same. |
-| `Approval` DB model | Same. |
-| `scheduleData` hardcoded to today's 4 slots | Replace with real appointment records. |
+| **1 — Foundation** | Student-only JWT auth, expanded patient intake (Basic info + Medical history tabs), search + status filter on patient grid, removed admin/role toggle entirely |
+| **2 — Clinical Core** | `Appointment` model + CRUD, week/upcoming calendar view, `Visit` + `ClinicalNote` models, SOAP note editor per visit, `PatientDetail` panel with 6 tabs (Overview, Tooth Chart, Visits, Treatment Plan, Appointments, Intake) |
+| **3 — Intelligence Layer** | `TreatmentPlan` + `TreatmentStep` checklist UI, `Reminder` model + notification bell + panel, prospect Kanban with stage-advance buttons, live overview stats (all from API) |
+| **4 — Competency & Auth** | `CompetencyEntry` auto-logged on visit save, competency progress bars + procedure log table, full JWT login flow, per-student data scoping on every query |
 
 ---
 
-## Keep & Enhance
+## Phase 5 — Polish & Export
 
-| Item | Enhancement |
-|---|---|
-| 3D tooth chart | Add per-tooth notes (not just flag — "caries", "fracture", "crown needed", "restored"). Show severity. |
-| Patient cards | Show treatment plan status, last visit date, overdue indicator. |
-| Competency bars | Link bars to real procedure log — auto-calculate from logged cases, not hardcoded `14/20`. |
-| Prospect list | Add stage progression (New lead → Contacted → Appointment booked → Converted). |
-| Theme switcher | Keep. |
+### 1. PDF Competency Portfolio
+Students need to submit procedure logs to their program director.
 
----
-
-## Add These
-
-### 1. Clinical Notes (SOAP) — _highest priority_
-Per-visit structured notes tied to a patient + appointment.
-
-- **S** — Subjective (patient complaint)
-- **O** — Objective (exam findings, vitals)
-- **A** — Assessment (diagnosis)
-- **P** — Plan (treatment decided)
-
-Student writes notes during or after each visit. Notes are searchable and form the patient's clinical record. A patient's full note history is their timeline.
-
-**New model:** `Visit { id, patient_id, date, procedure, duration_mins, faculty_supervisor, status: completed|no_show|cancelled }` + `ClinicalNote { id, visit_id, subjective, objective, assessment, plan, created_at }`
+- Generate a formatted PDF of all `CompetencyEntry` records grouped by category
+- Show requirement vs. completed per category, with dates and faculty names
+- "Export portfolio" button on the Competency page
+- Use `pdfmake` or `jsPDF` on the frontend (no server needed for this)
 
 ---
 
-### 2. Treatment Plans
-Each patient can have one active treatment plan with ordered steps.
+### 2. Per-Tooth Clinical Notes
+The tooth chart currently flags teeth as "bad" with no detail. Real clinical charting needs more.
 
-Example: patient with decay on #14:
-1. ✅ Initial exam & charting
-2. ✅ Radiograph
-3. 🔄 Composite restoration #14 ← _in progress_
-4. ⬜ Polishing & review
+- Click a flagged tooth → open a small popover to set: **condition** (caries, fracture, crown, restoration, missing, root canal) + **severity** (mild, moderate, severe) + free-text **note**
+- Show condition icons on the 3D chart (colour-coded by condition type, not just red/white)
+- List view shows tooth number, condition, severity, note
+- These feed into the SOAP note O (Objective) section automatically
 
-Students mark steps complete. The plan drives the "next appointment" recommendation.
-
-**New model:** `TreatmentPlan { id, patient_id, title, status: active|completed|on_hold }` + `TreatmentStep { id, plan_id, order, description, status: pending|in_progress|completed, completed_at }`
+**Model change:** `FlaggedTooth` already has `note` and `severity` fields — just need the UI.
 
 ---
 
-### 3. Appointment Scheduling
-Currently appointments are read-only cards. Students need to create, reschedule, and cancel.
+### 3. Recall Detection & Smart Reminders
+Auto-generate reminders instead of requiring manual creation.
 
-- Book a new appointment (patient → date/time → room → procedure)
-- View day, week, month calendar
-- Mark completed / no-show / cancelled
-- Overdue appointments (scheduled in past, no status update) surface as alerts
+- Nightly job (or on-load check): if a patient's last visit was 6+ months ago and no future appointment exists → create a recall reminder
+- If a prospect has been in "New lead" for 14+ days → create outreach reminder
+- If a treatment plan step is marked `in_progress` for 30+ days → create a follow-up reminder
+- Surface count on the Overview "Action required" strip
 
-**New model:** `Appointment { id, patient_id, datetime, room, procedure, status: scheduled|confirmed|completed|no_show|cancelled, notes }`
-
-Replace the current hardcoded `ScheduleEntry` table.
+**Backend:** Add a `POST /api/reminders/generate` endpoint that runs the detection logic. Call it on login.
 
 ---
 
-### 4. Reminders & Follow-up Alerts
-Proactive nudges so patients don't fall through the cracks.
+### 4. Mobile / Tablet Layout
+Students use tablets chairside. The current layout is desktop-only.
 
-- Recall due: patient hasn't been seen in 6 months → reminder
-- Follow-up: "Check healing on #14 extraction" in 7 days
-- Prospect outreach: lead hasn't been contacted in 2 weeks
-- Upcoming appointment: 24h before
-- Overdue treatment step: plan step was due last week
-
-Surface these as a **Notifications panel** (bell icon) and on the Overview page as an "Action required" strip.
-
-**New model:** `Reminder { id, patient_id, appointment_id, due_date, message, type: recall|followup|outreach|custom, dismissed_at }`
+- Responsive breakpoints: sidebar collapses to bottom nav bar on < 768px
+- PatientDetail becomes a full-screen sheet (swipe down to close)
+- Tooth chart touch controls already exist — verify on actual tablet
+- The SOAP note editor should auto-expand and push the keyboard up correctly
 
 ---
 
-### 5. Patient Detail Page / Timeline
-Clicking a patient currently opens only the tooth chart. It should open a full patient page:
+### 5. Offline / Chairside Mode
+Clinic Wi-Fi is unreliable. A student shouldn't lose a SOAP note because the router dropped.
 
-- **Header**: name, age, status, faculty, contact info
-- **Medical history tab**: allergies, medications, conditions, chief complaint (intake form)
-- **Timeline tab**: every visit in chronological order with SOAP notes, expandable
-- **Treatment plan tab**: current plan with step checklist
-- **Tooth chart tab**: the existing 3D viewer (keep exactly as-is)
-- **Appointments tab**: all past + upcoming appointments
-
-**New model fields on `Patient`**: `phone`, `email`, `dob`, `allergies`, `medications`, `medical_conditions`, `chief_complaint`, `referred_by`
+- Service worker caches the app shell and last-loaded patient data
+- SOAP notes written offline are queued in IndexedDB and synced when back online
+- Visual indicator when offline ("working offline — notes will sync")
+- Read-only tooth chart and patient overview work fully offline
 
 ---
 
-### 6. Procedure / Competency Log
-Instead of static `14/20` bars, every completed visit auto-logs against the student's competency requirements.
+### 6. Global Search
+As the patient list grows, students need to find records without scrolling.
 
-- Student logs a visit → selects procedure category (Restorative, Periodontics, Endodontics, Prosthodontics, Oral Surgery, Ortho)
-- Dashboard bars calculate live from the log
-- Detailed log view: sortable table of every logged case with date, patient, procedure, faculty
-- Export to PDF for competency portfolio submissions
+- `Cmd/Ctrl + K` opens a command palette
+- Searches patient names, procedures, visit notes (fuzzy match)
+- Results show patient name + last procedure + next appointment
+- Selecting a result opens PatientDetail directly
 
-**New model:** `CompetencyEntry { id, visit_id, category, procedure_name, patient_name, date, faculty }` — derived from visits but kept as an explicit record for export.
-
----
-
-### 7. Patient Intake Form
-Currently `AddPatientModal` only collects name, age, faculty, status, appointment, and procedure. Expand to:
-
-- Contact info (phone, email)
-- Date of birth
-- Medical history (allergies, current medications, conditions: diabetes, hypertension, etc.)
-- Chief complaint (why they're here)
-- Referral source (links to the prospect pipeline)
-
-This replaces the basic add-patient form with a proper intake flow.
+**Backend:** `GET /api/search?q=` — searches across patients, visits, notes.
 
 ---
 
-### 8. Search & Filter
-The patient list grows. Students need to find patients fast.
+### 7. Faculty Sign-Off Workflow (Optional / v2)
+If the program requires faculty countersignature on notes:
 
-- Search by name
-- Filter by status (Active / Recall / New)
-- Filter by faculty supervisor
-- Filter by procedure type
-- Sort by: next appointment, last seen, name, flagged teeth count
-
----
-
-### 9. Dashboard Overhaul (Overview section)
-Replace static overview with live, action-oriented metrics:
-
-| Metric | Source |
-|---|---|
-| Patients needing follow-up | Recalls overdue |
-| Appointments this week | From `Appointment` table |
-| Procedures logged this month | From `CompetencyEntry` |
-| Requirements progress | Live from log, not hardcoded |
-| Uncontacted leads | Prospects in "New lead" for 14+ days |
-| Urgent alerts | Overdue appointments, unsigned notes |
-
-Add an **"Action required"** section at the top — a prioritized list of things the student needs to do today (call a recall patient, update notes from yesterday's visit, follow up on a lead).
+- Add a `signed_by` + `signed_at` field to `ClinicalNote`
+- Student marks a note "ready for review"
+- Faculty get a separate read-only view (separate login, separate app) to countersign
+- Signed notes are locked from editing
+- This is explicitly out of scope for the student app — would be a separate faculty portal
 
 ---
 
-### 10. Real Auth (JWT)
-Placeholder login currently. For real use:
+### 8. Audit Log / Change History
+For clinical records compliance:
 
-- Username/password with bcrypt hashing
-- JWT stored in httpOnly cookie (not localStorage)
-- Student's own patients only (scoped queries by `student_id`)
-- `/api/me` endpoint for profile
-
-Multiple students → each student sees only their own patients. This is the key change that makes the per-student data scoping work.
+- Every edit to a `ClinicalNote`, `TreatmentStep`, or `FlaggedTooth` writes a timestamped row to an `AuditLog` table
+- Notes cannot be deleted — only superseded (soft delete with `deleted_at`)
+- Visible to the student as "last edited" metadata on notes
 
 ---
 
-## Revised Data Model
+### 9. Appointment Reminders (Patient-Facing)
+Nice to have once the system is more mature:
 
-```
-Student          → the logged-in user
-Patient          → belongs to a student
-  FlaggedTooth   → per patient, per tooth
-  TreatmentPlan  → one active plan per patient
-    TreatmentStep
-  Appointment    → scheduled visits
-    ClinicalNote → SOAP notes per appointment
-  Reminder       → follow-up alerts
-  CompetencyEntry→ logged procedures for requirements
-Prospect         → potential future patients
-```
+- Student clicks "Send reminder" on an upcoming appointment
+- Generates a pre-filled SMS or email text the student can copy-paste or send via their phone
+- Does not require Twilio or SendGrid integration — just generates the text
+- Later: actual SMS via Twilio with a verified sender number from the school
 
 ---
 
-## Navigation Structure (Revised)
+### 10. Analytics / Progress Dashboard
+End-of-term view for the student to reflect on their clinical progress:
 
-Remove the dual student/admin nav. One nav for the student:
+- Cases per month chart (bar)
+- Competency requirements timeline — when each category hit 100%
+- Most common procedures, most common conditions charted
+- "Time to close" — average days from first visit to treatment plan complete
+- Export as a summary PDF for portfolio or advisor meeting
 
-| # | Section | What's there |
+---
+
+## Revised Navigation (Post Phase 4)
+
+| # | Section | Current state |
 |---|---|---|
-| 01 | Overview | Action required strip, live stats, today's schedule |
-| 02 | Patients | Full patient list with search/filter |
-| 03 | Calendar | Week/month appointment calendar |
-| 04 | Prospects | Lead pipeline with stage tracker |
-| 05 | Competency | Procedure log + requirement bars |
-| 06 | Reminders | Upcoming + overdue alerts |
+| 01 | Overview | ✅ Live stats, action required strip, today's schedule |
+| 02 | Patients | ✅ Search, status filter, patient cards → PatientDetail |
+| 03 | Calendar | ✅ Week view + upcoming list |
+| 04 | Prospects | ✅ Kanban pipeline with stage advance |
+| 05 | Competency | ✅ Live bars + procedure log table |
+| 06 | Reminders | ✅ Dismiss-able list + bell icon panel |
+
+**Candidates for Phase 5 nav additions:**
+
+| # | Section | What goes there |
+|---|---|---|
+| 07 | Search | Global `Cmd+K` command palette (inline, not a page) |
+| 07 | Analytics | End-of-term progress charts |
 
 ---
 
-## Phased Build Plan
+## Data Model (Current)
 
-### Phase 1 — Foundation (now → working app)
-- [x] Backend models + API endpoints
-- [x] Frontend wired to API
-- [x] Patient list, tooth chart, prospects, schedule
-- [ ] Remove admin view / role toggle
-- [ ] Patient intake form (expanded fields)
-- [ ] Search + filter on patient list
+```
+User (Student)
+  id, name, email, hashed_password, year
 
-### Phase 2 — Clinical Core
-- [ ] `Appointment` model replacing `ScheduleEntry`
-- [ ] Create/edit/cancel appointments UI
-- [ ] Calendar view (week layout)
-- [ ] `Visit` + `ClinicalNote` models + SOAP note editor
-- [ ] Patient timeline tab (visit history)
+Patient                        → belongs to User (student_id FK)
+  id, name, age, phone, email, dob
+  faculty, status, procedure
+  allergies, medications, medical_conditions
+  chief_complaint, referred_by
 
-### Phase 3 — Intelligence Layer
-- [ ] `TreatmentPlan` + `TreatmentStep` with checklist UI
-- [ ] `Reminder` model + notification panel
-- [ ] Recall detection (no appointment in 6 months → auto-reminder)
-- [ ] Prospect stage progression (drag or click through pipeline)
-- [ ] Overhaul overview stats to be 100% live
+  FlaggedTooth                 → per patient
+    id, tooth_id, note, severity
 
-### Phase 4 — Competency & Auth
-- [ ] `CompetencyEntry` auto-logged on visit completion
-- [ ] Detailed competency log table + live bars
-- [ ] PDF export of competency record
-- [ ] Real JWT auth (`python-jose`, `passlib`)
-- [ ] Per-student data scoping
+  Appointment                  → scheduled visits
+    id, datetime_str, room, procedure, faculty, status, notes
+
+  Visit                        → completed sessions
+    id, date_str, procedure, procedure_category
+    duration_mins, faculty_supervisor, status
+
+    ClinicalNote               → SOAP note per visit (1:1)
+      subjective, objective, assessment, plan
+
+  TreatmentPlan
+    id, title, status
+    TreatmentStep[]            → ordered checklist items
+
+  Reminder
+    id, due_date_str, message, type, dismissed
+
+  CompetencyEntry              → auto-created from Visit
+    id, category, procedure_name, patient_name, date_str, faculty
+
+Prospect                       → belongs to User (student_id FK)
+  id, name, interest, source, stage
+```
 
 ---
 
-## What This Becomes
+## What This Becomes (Long Term)
 
 A tool a dental student opens every clinic day to:
 1. See what's on the schedule and any alerts needing attention
-2. Pull up a patient, review their plan, open the tooth chart
-3. Write visit notes before they leave the chair
+2. Pull up a patient, review their treatment plan, open the tooth chart
+3. Write SOAP notes before they leave the chair
 4. Book the next appointment and set a recall reminder
 5. Track where they stand on competency requirements at a glance
+6. Export their procedure log at the end of the semester
 
-Scope: single-user, offline-capable eventually, mobile-responsive for tablet use chairside.
+**Longer term:** white-label for dental schools, multi-student cohort dashboards for program directors, integration with school scheduling systems (PMS like Dentrix or Eaglesoft).
