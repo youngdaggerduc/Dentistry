@@ -93,7 +93,10 @@ export default function App() {
 
   function applyPatients(pts) {
     setPatients(pts.map((p, i) => ({ ...p, tone: TONE[i % TONE.length] })))
-    setFlaggedMap(Object.fromEntries(pts.map(p => [p.id, (p.badTeeth || []).map(t => t.id || t)])))
+    setFlaggedMap(Object.fromEntries(pts.map(p => [
+      p.id,
+      (p.badTeeth || []).map(t => typeof t === 'string' ? { id: t, note: 'caries', severity: 'moderate' } : t),
+    ])))
   }
 
   function showToast(msg, duration = 2800) {
@@ -123,11 +126,13 @@ export default function App() {
   }
 
   const toggleTooth = async (toothId) => {
-    const isFlagged = (flaggedMap[selectedId] || []).includes(toothId)
+    const teeth = flaggedMap[selectedId] || []
+    const isFlagged = teeth.some(t => (t.id || t) === toothId)
     setFlaggedMap(prev => {
       const cur = (prev[selectedId] || []).slice()
-      const i = cur.indexOf(toothId)
-      if (i >= 0) cur.splice(i, 1); else cur.push(toothId)
+      const i = cur.findIndex(t => (t.id || t) === toothId)
+      if (i >= 0) cur.splice(i, 1)
+      else cur.push({ id: toothId, note: 'caries', severity: 'moderate' })
       return { ...prev, [selectedId]: cur }
     })
     try {
@@ -136,8 +141,8 @@ export default function App() {
     } catch {
       setFlaggedMap(prev => {
         const cur = (prev[selectedId] || []).slice()
-        if (isFlagged) { if (!cur.includes(toothId)) cur.push(toothId) }
-        else { const i = cur.indexOf(toothId); if (i >= 0) cur.splice(i, 1) }
+        if (isFlagged) { if (!cur.some(t => (t.id||t) === toothId)) cur.push({ id: toothId, note: 'caries', severity: 'moderate' }) }
+        else { const i = cur.findIndex(t => (t.id||t) === toothId); if (i >= 0) cur.splice(i, 1) }
         return { ...prev, [selectedId]: cur }
       })
     }
@@ -147,9 +152,23 @@ export default function App() {
     const teeth = (flaggedMap[selectedId] || []).slice()
     setFlaggedMap(prev => ({ ...prev, [selectedId]: [] }))
     try {
-      await Promise.all(teeth.map(t => api.patients.unflagTooth(selectedId, t)))
+      await Promise.all(teeth.map(t => api.patients.unflagTooth(selectedId, t.id || t)))
     } catch {
       setFlaggedMap(prev => ({ ...prev, [selectedId]: teeth }))
+    }
+  }
+
+  const updateTooth = async (toothId, note, severity) => {
+    setFlaggedMap(prev => ({
+      ...prev,
+      [selectedId]: (prev[selectedId] || []).map(t =>
+        (t.id || t) === toothId ? { ...t, note, severity } : t
+      ),
+    }))
+    try {
+      await api.patients.updateTooth(selectedId, toothId, note, severity)
+    } catch {
+      showToast('Failed to update tooth note')
     }
   }
 
@@ -360,9 +379,10 @@ export default function App() {
           <PatientDetail
             key={selectedId}
             patient={selectedPatient}
-            flaggedIds={flaggedMap[selectedId] || []}
+            flaggedTeeth={flaggedMap[selectedId] || []}
             onToggle={toggleTooth}
             onClear={clearTeeth}
+            onUpdateTooth={updateTooth}
             onClose={() => setSelectedId(null)}
             onUpdate={updatePatient}
             onDelete={deletePatient}

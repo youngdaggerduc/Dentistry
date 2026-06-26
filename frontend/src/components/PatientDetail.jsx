@@ -34,15 +34,22 @@ const DIM = { central:[0.46,0.78,0.42,0.15], lateral:[0.39,0.68,0.40,0.14], cani
 const iS = { width:'100%',padding:'10px 12px',borderRadius:'10px',background:'rgba(0,0,0,.25)',border:'1px solid rgba(255,255,255,.12)',color:'#eaf6f6',fontSize:'13.5px',outline:'none',boxSizing:'border-box',fontFamily:'inherit' }
 const lS = { display:'block',fontSize:'10px',letterSpacing:'.13em',textTransform:'uppercase',color:'rgba(234,246,246,.5)',marginBottom:'5px',marginTop:'12px' }
 
-// ── ToothChart sub-component ─────────────────────────────────────────────────
-function ToothChart({ flaggedIds, onToggle, onClear }) {
-  const canvasRef = useRef()
-  const tipRef    = useRef()
-  const stateRef  = useRef()
+const CONDITIONS = ['caries','fracture','crown needed','missing','root canal','restored','abrasion','other']
+const SEVERITIES = ['mild','moderate','severe']
+const COND_COLOR = { caries:'#ff8f8f', fracture:'#ffcf7a', 'crown needed':'#a8c7f7', missing:'rgba(255,255,255,.5)', 'root canal':'#f0b8c8', restored:'#bfe9a8', abrasion:'#f7d9a8', other:'var(--c1)' }
 
-  const flaggedTeeth = [...flaggedIds].sort().map(id => ({
-    id, tooth:'#'+id.slice(1)+(id[0]==='U'?' ↑':' ↓'), label:toothLabel(id),
-  }))
+// ── ToothChart sub-component ─────────────────────────────────────────────────
+function ToothChart({ flaggedTeeth: flaggedTeethProp, onToggle, onClear, onUpdateTooth }) {
+  const canvasRef  = useRef()
+  const tipRef     = useRef()
+  const stateRef   = useRef()
+  const [editing, setEditing] = useState(null) // tooth id being edited
+
+  const flaggedIds  = (flaggedTeethProp || []).map(t => t.id || t)
+  const flaggedTeeth = [...flaggedIds].sort().map(id => {
+    const detail = (flaggedTeethProp || []).find(t => (t.id || t) === id) || {}
+    return { id, tooth:'#'+id.slice(1)+(id[0]==='U'?' ↑':' ↓'), label:toothLabel(id), note:detail.note||'caries', severity:detail.severity||'moderate' }
+  })
 
   const setMeshBad = (id, bad) => {
     if (!stateRef.current) return
@@ -135,23 +142,78 @@ function ToothChart({ flaggedIds, onToggle, onClear }) {
         <div style={{ position:'absolute',bottom:'12px',left:0,right:0,textAlign:'center',fontSize:'11.5px',letterSpacing:'.06em',color:'rgba(234,246,246,.55)',pointerEvents:'none' }}>Click a tooth to flag · drag to rotate</div>
       </div>
       <div style={{ display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:'12px' }}>
-        <div style={{ fontSize:'12px',letterSpacing:'.16em',textTransform:'uppercase',color:'var(--c1)' }}>Charted findings ({flaggedIds.length})</div>
+        <div style={{ fontSize:'12px',letterSpacing:'.16em',textTransform:'uppercase',color:'var(--c1)' }}>Charted findings ({flaggedTeeth.length})</div>
         <button onClick={handleClear} style={{ background:'transparent',border:'1px solid rgba(255,255,255,.16)',color:'rgba(234,246,246,.7)',fontFamily:'inherit',fontSize:'12px',padding:'6px 12px',borderRadius:'20px',cursor:'pointer' }} onMouseEnter={e=>e.currentTarget.style.background='rgba(255,255,255,.08)'} onMouseLeave={e=>e.currentTarget.style.background='transparent'}>Clear all</button>
       </div>
       {flaggedTeeth.length>0 ? (
         <div style={{ display:'flex',flexDirection:'column',gap:'8px' }}>
-          {flaggedTeeth.map(f=>(
-            <div key={f.id} style={{ display:'flex',alignItems:'center',gap:'14px',padding:'12px 16px',borderRadius:'14px',background:'rgba(255,255,255,.04)',border:'1px solid rgba(255,90,90,.22)' }}>
-              <span style={{ width:'9px',height:'9px',borderRadius:'50%',background:'#ff5a5a',boxShadow:'0 0 10px #ff5a5a',display:'inline-block',flexShrink:0 }} />
-              <span style={{ fontFamily:"'Instrument Serif',serif",fontSize:'18px',width:'60px',flexShrink:0 }}>{f.tooth}</span>
-              <span style={{ flex:1,fontSize:'14px',color:'rgba(234,246,246,.85)' }}>{f.label}</span>
-              <button onClick={()=>onToggle(f.id)} style={{ background:'transparent',border:'none',color:'rgba(255,255,255,.4)',cursor:'pointer',fontSize:'14px' }} onMouseEnter={e=>e.currentTarget.style.color='#fff'} onMouseLeave={e=>e.currentTarget.style.color='rgba(255,255,255,.4)'}>✕</button>
-            </div>
-          ))}
+          {flaggedTeeth.map(f=>{
+            const condColor = COND_COLOR[f.note] || 'var(--c1)'
+            const isEditing = editing === f.id
+            return (
+              <div key={f.id} style={{ borderRadius:'14px',background:'rgba(255,255,255,.04)',border:`1px solid color-mix(in srgb,${condColor} 30%,transparent)`,overflow:'hidden' }}>
+                <div style={{ display:'flex',alignItems:'center',gap:'12px',padding:'12px 16px' }}>
+                  <span style={{ width:'9px',height:'9px',borderRadius:'50%',background:condColor,boxShadow:`0 0 8px ${condColor}`,display:'inline-block',flexShrink:0 }} />
+                  <span style={{ fontFamily:"'Instrument Serif',serif",fontSize:'18px',width:'52px',flexShrink:0 }}>{f.tooth}</span>
+                  <div style={{ flex:1,minWidth:0 }}>
+                    <div style={{ fontSize:'13.5px',color:'rgba(234,246,246,.85)' }}>{f.label}</div>
+                    <div style={{ display:'flex',gap:'8px',marginTop:'3px',flexWrap:'wrap' }}>
+                      <span style={{ fontSize:'10.5px',padding:'2px 8px',borderRadius:'20px',background:`color-mix(in srgb,${condColor} 15%,transparent)`,color:condColor }}>{f.note}</span>
+                      <span style={{ fontSize:'10.5px',color:'rgba(255,255,255,.35)' }}>{f.severity}</span>
+                    </div>
+                  </div>
+                  <button onClick={()=>setEditing(isEditing?null:f.id)} style={{ padding:'5px 10px',borderRadius:'20px',border:'1px solid rgba(255,255,255,.16)',background:isEditing?'rgba(255,255,255,.1)':'transparent',color:'rgba(234,246,246,.65)',cursor:'pointer',fontSize:'11.5px',fontFamily:'inherit' }}>Edit</button>
+                  <button onClick={()=>onToggle(f.id)} style={{ background:'transparent',border:'none',color:'rgba(255,255,255,.35)',cursor:'pointer',fontSize:'14px' }} onMouseEnter={e=>e.currentTarget.style.color='#fff'} onMouseLeave={e=>e.currentTarget.style.color='rgba(255,255,255,.35)'}>✕</button>
+                </div>
+                {isEditing && (
+                  <ToothEditForm
+                    tooth={f}
+                    onSave={(note,severity)=>{ onUpdateTooth(f.id,note,severity); setEditing(null) }}
+                    onCancel={()=>setEditing(null)}
+                  />
+                )}
+              </div>
+            )
+          })}
         </div>
       ) : (
         <div style={{ padding:'24px',textAlign:'center',borderRadius:'16px',background:'rgba(255,255,255,.03)',border:'1px dashed rgba(255,255,255,.14)',color:'rgba(234,246,246,.5)',fontSize:'14px' }}>No findings charted. Click any tooth to flag pathology.</div>
       )}
+    </div>
+  )
+}
+
+// ── ToothEditForm ─────────────────────────────────────────────────────────────
+function ToothEditForm({ tooth, onSave, onCancel }) {
+  const [note,     setNote]     = useState(tooth.note     || 'caries')
+  const [severity, setSeverity] = useState(tooth.severity || 'moderate')
+  const condColor = COND_COLOR[note] || 'var(--c1)'
+  return (
+    <div style={{ padding:'12px 16px 16px',borderTop:'1px solid rgba(255,255,255,.08)',display:'flex',flexDirection:'column',gap:'12px' }}>
+      <div>
+        <div style={{ fontSize:'10px',letterSpacing:'.13em',textTransform:'uppercase',color:'rgba(234,246,246,.45)',marginBottom:'8px' }}>Condition</div>
+        <div style={{ display:'flex',gap:'6px',flexWrap:'wrap' }}>
+          {CONDITIONS.map(c => (
+            <button key={c} onClick={()=>setNote(c)} style={{ padding:'5px 11px',borderRadius:'20px',border:`1px solid color-mix(in srgb,${COND_COLOR[c]||'var(--c1)'} 35%,transparent)`,background:note===c?`color-mix(in srgb,${COND_COLOR[c]||'var(--c1)'} 20%,transparent)`:'transparent',color:note===c?(COND_COLOR[c]||'var(--c1)'):'rgba(234,246,246,.55)',cursor:'pointer',fontSize:'12px',fontFamily:'inherit',transition:'all .15s' }}>
+              {c}
+            </button>
+          ))}
+        </div>
+      </div>
+      <div>
+        <div style={{ fontSize:'10px',letterSpacing:'.13em',textTransform:'uppercase',color:'rgba(234,246,246,.45)',marginBottom:'8px' }}>Severity</div>
+        <div style={{ display:'flex',gap:'6px' }}>
+          {SEVERITIES.map(s => (
+            <button key={s} onClick={()=>setSeverity(s)} style={{ padding:'5px 13px',borderRadius:'20px',border:'1px solid rgba(255,255,255,.18)',background:severity===s?'rgba(255,255,255,.12)':'transparent',color:severity===s?'#fff':'rgba(234,246,246,.55)',cursor:'pointer',fontSize:'12px',fontFamily:'inherit',transition:'all .15s' }}>
+              {s}
+            </button>
+          ))}
+        </div>
+      </div>
+      <div style={{ display:'flex',gap:'8px' }}>
+        <button onClick={()=>onSave(note,severity)} style={{ padding:'7px 18px',borderRadius:'10px',border:'none',background:`linear-gradient(140deg,${condColor},color-mix(in srgb,${condColor} 70%,var(--c3)))`,color:'#04212a',fontWeight:600,cursor:'pointer',fontSize:'12.5px',fontFamily:'inherit' }}>Save</button>
+        <button onClick={onCancel} style={{ padding:'7px 13px',borderRadius:'10px',border:'1px solid rgba(255,255,255,.15)',background:'transparent',color:'rgba(234,246,246,.65)',cursor:'pointer',fontSize:'12.5px',fontFamily:'inherit' }}>Cancel</button>
+      </div>
     </div>
   )
 }
@@ -503,7 +565,7 @@ function IntakeTab({ patient, onUpdate }) {
 }
 
 // ── Main PatientDetail panel ─────────────────────────────────────────────────
-export default function PatientDetail({ patient, flaggedIds, onToggle, onClear, onClose, onUpdate, onDelete, onCreateAppointment, onUpdateAppointment, onCancelAppointment, allAppts, showToast }) {
+export default function PatientDetail({ patient, flaggedTeeth, onToggle, onClear, onUpdateTooth, onClose, onUpdate, onDelete, onCreateAppointment, onUpdateAppointment, onCancelAppointment, allAppts, showToast }) {
   const [tab, setTab] = useState('overview')
 
   const tabs = [
@@ -566,7 +628,7 @@ export default function PatientDetail({ patient, flaggedIds, onToggle, onClear, 
         {tab==='overview' && (
           <div>
             <div style={{ display:'grid',gridTemplateColumns:'1fr 1fr',gap:'14px',marginBottom:'20px' }}>
-              {[[flaggedIds.length,'Flagged teeth','#ff8f8f','rgba(255,90,90,.1)','rgba(255,90,90,.25)'],[allAppts.filter(a=>a.status==='completed').length,'Completed visits','var(--c2)','color-mix(in srgb,var(--c1) 10%,transparent)','color-mix(in srgb,var(--c1) 22%,transparent)']].map(([val,lbl,fg,bg,border])=>(
+              {[[(flaggedTeeth||[]).length,'Flagged teeth','#ff8f8f','rgba(255,90,90,.1)','rgba(255,90,90,.25)'],[allAppts.filter(a=>a.status==='completed').length,'Completed visits','var(--c2)','color-mix(in srgb,var(--c1) 10%,transparent)','color-mix(in srgb,var(--c1) 22%,transparent)']].map(([val,lbl,fg,bg,border])=>(
                 <div key={lbl} style={{ padding:'18px',borderRadius:'16px',background:bg,border:`1px solid ${border}` }}>
                   <div style={{ fontFamily:"'Instrument Serif',serif",fontSize:'38px',color:fg }}>{String(val).padStart(2,'0')}</div>
                   <div style={{ fontSize:'12px',color:'rgba(255,255,255,.6)',marginTop:'4px' }}>{lbl}</div>
@@ -584,7 +646,7 @@ export default function PatientDetail({ patient, flaggedIds, onToggle, onClear, 
             </div>
           </div>
         )}
-        {tab==='chart' && <ToothChart flaggedIds={flaggedIds} onToggle={onToggle} onClear={onClear} />}
+        {tab==='chart' && <ToothChart flaggedTeeth={flaggedTeeth} onToggle={onToggle} onClear={onClear} onUpdateTooth={onUpdateTooth} />}
         {tab==='visits' && <VisitsTab patientId={patient.id} showToast={showToast} />}
         {tab==='plan' && <TreatmentPlanTab patientId={patient.id} showToast={showToast} />}
         {tab==='appts' && <AppointmentsTab patient={patient} allAppts={allAppts} onCreateAppointment={onCreateAppointment} onUpdateAppointment={onUpdateAppointment} onCancelAppointment={onCancelAppointment} showToast={showToast} />}

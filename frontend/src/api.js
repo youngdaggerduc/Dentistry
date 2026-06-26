@@ -32,8 +32,9 @@ export const api = {
     create:      (data)          => req('POST',   '/patients', data),
     update:      (id, data)      => req('PUT',    `/patients/${id}`, data),
     delete:      (id)            => req('DELETE', `/patients/${id}`),
-    flagTooth:   (id, toothId)   => req('POST',   `/patients/${id}/teeth/${toothId}`),
-    unflagTooth: (id, toothId)   => req('DELETE', `/patients/${id}/teeth/${toothId}`),
+    flagTooth:   (id, toothId)                => req('POST',   `/patients/${id}/teeth/${toothId}`),
+    unflagTooth: (id, toothId)                => req('DELETE', `/patients/${id}/teeth/${toothId}`),
+    updateTooth: (id, toothId, note, severity) => req('PATCH',  `/patients/${id}/teeth/${toothId}?note=${encodeURIComponent(note)}&severity=${encodeURIComponent(severity)}`),
   },
   appointments: {
     list:      ()        => req('GET',   '/appointments'),
