@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import PatientCard from './PatientCard.jsx'
+import { exportCompetencyPDF } from './CompetencyExport.jsx'
 
 
 const KIND_COLOR = {
@@ -303,7 +304,16 @@ export default function StudentView({
       </Section>
 
       {/* ── Competency ── */}
-      <Section id="competency" title="Competency requirements">
+      <Section id="competency" title="Competency requirements" right={
+        <button
+          onClick={() => exportCompetencyPDF(competency, user?.name, user?.year)}
+          style={{ display:'flex',alignItems:'center',gap:'7px',padding:'8px 16px',borderRadius:'20px',border:'1px solid rgba(255,255,255,.18)',background:'transparent',color:'rgba(234,246,246,.8)',cursor:'pointer',fontSize:'12.5px',fontFamily:'inherit',transition:'all .2s' }}
+          onMouseEnter={e=>{e.currentTarget.style.background='rgba(255,255,255,.08)';e.currentTarget.style.color='#fff'}}
+          onMouseLeave={e=>{e.currentTarget.style.background='transparent';e.currentTarget.style.color='rgba(234,246,246,.8)'}}
+        >
+          <span>↓</span> Export PDF
+        </button>
+      }>
         <div style={{ display:'grid',gridTemplateColumns:'1fr 1.6fr',gap:'18px' }}>
           {/* Summary bars */}
           <Card>
