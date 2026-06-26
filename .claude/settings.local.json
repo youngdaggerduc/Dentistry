@@ -1,13 +1,41 @@
 {
   "permissions": {
     "allow": [
-      "Bash(npm --version)",
-      "Bash(mkdir -p backend/app/routers frontend)",
-      "Bash(python -m venv backend/venv)",
-      "Bash(./venv/Scripts/pip install *)",
-      "Bash(npm create *)",
+      "Bash(git clone *)",
+      "Bash(git init *)",
+      "Bash(git remote *)",
+      "Bash(git fetch *)",
+      "Bash(git checkout *)",
       "Bash(npm install *)",
-      "Bash(./venv/Scripts/python -c \"from app.main import app; print\\('backend import OK'\\)\")"
+      "Bash(npm run *)",
+      "Bash(py -3.12 --version)",
+      "Bash(py -3.11 --version)",
+      "Bash(py -3.13 --version)",
+      "Bash(Remove-Item -Recurse -Force \"C:/Users/PIERCE/Desktop/Projects/Dentistry/backend/venv\" -ErrorAction SilentlyContinue)",
+      "Bash(Write-Host \"done\")",
+      "PowerShell(uvicorn app.main:app *)",
+      "PowerShell(npm run *)",
+      "PowerShell(Start-Sleep -Seconds 3; Invoke-WebRequest -Uri \"http://localhost:8001/\" -UseBasicParsing 2>&1 | Select-Object -ExpandProperty Content)",
+      "PowerShell(Invoke-WebRequest -Uri \"http://localhost:8001/api/patients\" -UseBasicParsing | Select-Object -ExpandProperty Content)",
+      "PowerShell(Invoke-WebRequest -Uri \"http://localhost:8001/api/approvals\" -UseBasicParsing | Select-Object -ExpandProperty Content; Invoke-WebRequest -Uri \"http://localhost:8001/api/students\" -UseBasicParsing | Select-Object -ExpandProperty Content)",
+      "Bash(curl -s http://localhost:8001/)",
+      "Bash(curl -s http://localhost:5173/)",
+      "Bash(python3 -c \"import playwright\")",
+      "Bash(pip install *)",
+      "Bash(playwright install *)",
+      "Bash(python3 *)",
+      "Bash(py *)",
+      "PowerShell(Invoke-WebRequest -Uri \"http://localhost:8001/api/seed\" -Method POST -UseBasicParsing | Select-Object -ExpandProperty Content)",
+      "PowerShell(Invoke-WebRequest -Uri \"http://localhost:8001/api/seed\" -Method POST -UseBasicParsing 2>&1 | Select-Object -ExpandProperty Content; Invoke-RestMethod -Uri \"http://localhost:8001/api/seed\" -Method POST 2>&1)",
+      "PowerShell(Out-Null *)",
+      "PowerShell(Invoke-RestMethod -Uri \"http://localhost:8001/api/seed\" -Method POST 2>&1)",
+      "PowerShell(try { Invoke-RestMethod -Uri \"http://localhost:8001/api/seed\" -Method POST } catch { $_.Exception.Response.GetResponseStream\\(\\) | % { $sr = New-Object System.IO.StreamReader\\($_\\); $sr.ReadToEnd\\(\\) } })",
+      "PowerShell($r = Invoke-WebRequest -Uri \"http://localhost:8001/api/seed\" -Method POST -UseBasicParsing -ErrorAction SilentlyContinue; $r.Content; $r.StatusCode)",
+      "PowerShell(Remove-Item *)",
+      "PowerShell(Invoke-RestMethod \"http://localhost:8001/api/seed\" -Method POST)",
+      "PowerShell(Get-Job *)",
+      "PowerShell(Start-Sleep -Seconds 4; Invoke-WebRequest -Uri \"http://localhost:8001/api/auth/login\" -Method POST -ContentType \"application/json\" -Body '{\"email\":\"demo@enamel.app\",\"password\":\"incisor\"}' -UseBasicParsing | Select-Object -ExpandProperty Content)",
+      "PowerShell($r = Invoke-WebRequest -Uri \"http://localhost:5174\" -UseBasicParsing; $r.StatusCode)"
     ]
   }
 }

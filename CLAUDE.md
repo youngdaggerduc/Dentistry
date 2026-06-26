@@ -4,18 +4,25 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Commands
 
-**Backend** (from `backend/`, venv at `backend/venv/`):
-```bash
-source venv/Scripts/activate            # Git Bash on Windows
-uvicorn app.main:app --reload --port 8001   # dev server on :8001 (8000 often reserved by Hyper-V on Windows)
-pip install -r requirements.txt         # after editing requirements
+**Backend — first-time setup** (run once from project root, requires Python 3.12):
+```powershell
+cd backend; py -3.12 -m venv venv; .\venv\Scripts\Activate.ps1; pip install -r requirements.txt
 ```
 
-**Frontend** (from `frontend/`):
-```bash
-npm run dev                             # dev server on :5173
-npm run build                           # production build -> dist/
-npm run lint                            # eslint
+**Backend — start dev server** (run from project root each time):
+```powershell
+cd backend; .\venv\Scripts\Activate.ps1; uvicorn app.main:app --reload --port 8001
+```
+
+**Frontend — install & start dev server** (run from project root):
+```powershell
+cd frontend; npm install; npm run dev
+```
+
+**Frontend — other**:
+```powershell
+cd frontend; npm run build   # production build -> dist/
+cd frontend; npm run lint    # eslint
 ```
 
 **Migrations (Aerich)** — not yet initialized. Schema currently auto-generates via `generate_schemas=True` in `app/main.py`. First-time setup:

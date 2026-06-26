@@ -3,9 +3,12 @@ from fastapi.middleware.cors import CORSMiddleware
 from tortoise.contrib.fastapi import register_tortoise
 
 from app.config import TORTOISE_ORM
-from app.routers import homepage
+from app.routers import (
+    homepage, auth, patients, appointments, visits,
+    treatment_plans, reminders, competency, prospects, seed,
+)
 
-app = FastAPI(title="Portfolio API")
+app = FastAPI(title="Enamel API")
 
 app.add_middleware(
     CORSMiddleware,
@@ -16,6 +19,15 @@ app.add_middleware(
 )
 
 app.include_router(homepage.router)
+app.include_router(auth.router)
+app.include_router(patients.router)
+app.include_router(appointments.router)
+app.include_router(visits.router)
+app.include_router(treatment_plans.router)
+app.include_router(reminders.router)
+app.include_router(competency.router)
+app.include_router(prospects.router)
+app.include_router(seed.router)
 
 register_tortoise(
     app,
