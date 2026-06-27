@@ -1,4 +1,40 @@
-export default function Sidebar({ user, palettes, paletteIdx, setPaletteIdx, nav, active, scrollTo, onOpenAdd, onLogout, onBell, reminderCount }) {
+export default function Sidebar({ user, palettes, paletteIdx, setPaletteIdx, nav, active, scrollTo, onOpenAdd, onLogout, onBell, reminderCount, isMobile, onOpenSearch }) {
+  if (isMobile) {
+    return (
+      <nav style={{ position:'fixed',left:0,right:0,bottom:0,zIndex:30,height:'66px',display:'flex',alignItems:'stretch',background:'linear-gradient(180deg,rgba(10,28,34,.86),rgba(6,16,21,.97))',backdropFilter:'blur(26px) saturate(150%)',WebkitBackdropFilter:'blur(26px) saturate(150%)',borderTop:'1px solid rgba(255,255,255,.1)',boxShadow:'0 -8px 30px rgba(0,0,0,.4)' }}>
+        <div style={{ flex:1,display:'flex',alignItems:'stretch',overflowX:'auto',WebkitOverflowScrolling:'touch' }}>
+          {nav.map(item => {
+            const isActive = active === item.id
+            return (
+              <button
+                key={item.id}
+                onClick={() => scrollTo(item.id)}
+                style={{ flex:'1 0 auto',minWidth:'62px',display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',gap:'3px',border:'none',background:'transparent',cursor:'pointer',fontFamily:'inherit',padding:'0 4px',color:isActive?'var(--c1)':'rgba(234,246,246,.6)',position:'relative' }}
+              >
+                <span style={{ fontSize:'13px',fontVariantNumeric:'tabular-nums',fontWeight:isActive?700:500 }}>{item.num}</span>
+                <span style={{ fontSize:'10px',letterSpacing:'.02em',whiteSpace:'nowrap' }}>{item.label}</span>
+                {item.id === 'reminders' && reminderCount > 0 && (
+                  <span style={{ position:'absolute',top:'7px',right:'12px',width:'7px',height:'7px',borderRadius:'50%',background:'var(--c1)' }} />
+                )}
+                {isActive && <span style={{ position:'absolute',top:0,left:'20%',right:'20%',height:'2px',borderRadius:'2px',background:'linear-gradient(90deg,var(--c2),var(--c3))' }} />}
+              </button>
+            )
+          })}
+        </div>
+        <div style={{ display:'flex',alignItems:'center',gap:'6px',padding:'0 12px',borderLeft:'1px solid rgba(255,255,255,.1)',flexShrink:0 }}>
+          <button onClick={onOpenSearch} title="Search" style={{ width:'40px',height:'40px',borderRadius:'11px',background:'rgba(255,255,255,.07)',border:'1px solid rgba(255,255,255,.12)',color:'rgba(234,246,246,.85)',cursor:'pointer',fontSize:'16px' }}>🔍</button>
+          <button onClick={onBell} title="Reminders" style={{ position:'relative',width:'40px',height:'40px',borderRadius:'11px',background:'rgba(255,255,255,.07)',border:'1px solid rgba(255,255,255,.12)',color:'rgba(234,246,246,.85)',cursor:'pointer',fontSize:'16px' }}>
+            🔔
+            {reminderCount > 0 && (
+              <span style={{ position:'absolute',top:'-5px',right:'-5px',minWidth:'17px',height:'17px',padding:'0 3px',boxSizing:'border-box',borderRadius:'9px',background:'linear-gradient(140deg,var(--c2),var(--c3))',color:'#04212a',fontSize:'10px',fontWeight:700,display:'flex',alignItems:'center',justifyContent:'center' }}>{reminderCount > 9 ? '9+' : reminderCount}</span>
+            )}
+          </button>
+          <button onClick={onOpenAdd} title="New patient" style={{ width:'44px',height:'44px',borderRadius:'13px',background:'linear-gradient(140deg,var(--c2),var(--c3))',border:'none',color:'#04212a',fontSize:'24px',fontWeight:600,cursor:'pointer',boxShadow:'0 6px 18px color-mix(in srgb,var(--c1) 35%,transparent)',lineHeight:1 }}>+</button>
+        </div>
+      </nav>
+    )
+  }
+
   return (
     <aside style={{ width:'252px',flexShrink:0,padding:'28px 20px',display:'flex',flexDirection:'column',gap:'20px',background:'linear-gradient(180deg,rgba(255,255,255,.07),rgba(255,255,255,.015))',backdropFilter:'blur(26px) saturate(150%)',WebkitBackdropFilter:'blur(26px) saturate(150%)',borderRight:'1px solid rgba(255,255,255,.1)',overflowY:'auto' }}>
 

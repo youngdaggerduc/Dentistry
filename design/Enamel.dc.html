@@ -1,0 +1,731 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="">
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&amp;family=Space+Grotesk:wght@300;400;500;600;700&amp;display=swap" rel="stylesheet">
+<style>
+  html,body{margin:0;padding:0;height:100%;background:#04090c;}
+  *{box-sizing:border-box;}
+  :root{ --c1:#7be0d6; --c2:#9ff3ea; --c3:#3aa9c4; }
+  ::-webkit-scrollbar{width:9px;height:9px;}
+  ::-webkit-scrollbar-thumb{background:color-mix(in srgb,var(--c1) 30%,transparent);border-radius:20px;}
+  ::-webkit-scrollbar-track{background:transparent;}
+  input,select,button{font-family:'Space Grotesk',sans-serif;}
+  input::placeholder{color:rgba(234,246,246,.35);}
+  select option{background:#0a1c22;color:#eaf6f6;}
+  @keyframes enFloat{0%,100%{transform:translateY(0)}50%{transform:translateY(-18px)}}
+</style>
+<script src="https://unpkg.com/three@0.128.0/build/three.min.js"></script>
+<script src="https://unpkg.com/gsap@3.12.5/dist/gsap.min.js"></script>
+</helmet>
+
+<div id="en-root" style="position:fixed;inset:0;overflow:hidden;font-family:'Space Grotesk',system-ui,sans-serif;color:#eaf6f6;background:radial-gradient(120% 90% at 80% 10%,#0a2128 0%,#061117 45%,#03080b 100%);">
+
+  <canvas id="en-bg" style="position:absolute;inset:0;width:100%;height:100%;display:block;z-index:0;"></canvas>
+  <div style="position:absolute;inset:0;z-index:1;pointer-events:none;background:radial-gradient(120% 120% at 50% -10%,transparent 55%,rgba(0,0,0,.55) 100%);mix-blend-mode:multiply;"></div>
+  <div data-depth="34" style="position:absolute;top:-120px;right:-80px;width:520px;height:520px;border-radius:50%;z-index:1;pointer-events:none;background:radial-gradient(circle,color-mix(in srgb,var(--c1) 22%,transparent),transparent 65%);filter:blur(20px);animation:enFloat 11s ease-in-out infinite;"></div>
+  <div data-depth="22" style="position:absolute;bottom:-160px;left:18%;width:460px;height:460px;border-radius:50%;z-index:1;pointer-events:none;background:radial-gradient(circle,color-mix(in srgb,var(--c3) 30%,transparent),transparent 65%);filter:blur(20px);animation:enFloat 14s ease-in-out infinite reverse;"></div>
+
+  <sc-if value="{{ isLogin }}" hint-placeholder-val="{{ true }}">
+    <div style="position:absolute;inset:0;z-index:30;display:flex;align-items:center;justify-content:center;padding:24px;">
+      <div data-login="" style="width:430px;max-width:92vw;padding:44px 40px;border-radius:30px;background:linear-gradient(160deg,rgba(255,255,255,.1),rgba(255,255,255,.02));backdrop-filter:blur(34px) saturate(150%);-webkit-backdrop-filter:blur(34px) saturate(150%);border:1px solid rgba(255,255,255,.16);box-shadow:0 30px 90px rgba(0,15,22,.55),inset 0 1px 0 rgba(255,255,255,.22);">
+        <div style="display:flex;align-items:center;gap:13px;margin-bottom:30px;">
+          <div style="width:46px;height:46px;border-radius:15px;background:linear-gradient(140deg,var(--c2),var(--c3));box-shadow:0 8px 26px color-mix(in srgb,var(--c1) 45%,transparent),inset 0 1px 2px rgba(255,255,255,.7);display:flex;align-items:center;justify-content:center;">
+            <div style="width:15px;height:19px;border-radius:8px 8px 5px 5px;background:#04212a;"></div>
+          </div>
+          <div><div style="font-family:'Instrument Serif',serif;font-size:28px;line-height:1;">Enamel</div><div style="font-size:10px;letter-spacing:.28em;text-transform:uppercase;color:var(--c1);margin-top:3px;">Clinical Studio</div></div>
+        </div>
+
+        <h1 style="font-family:'Instrument Serif',serif;font-weight:400;font-size:34px;margin:0 0 6px;">Welcome back.</h1>
+        <p style="margin:0 0 26px;font-size:14px;color:rgba(234,246,246,.6);">Sign in to your dental student workspace.</p>
+
+        <div style="display:flex;gap:8px;padding:5px;border-radius:14px;background:rgba(0,0,0,.25);border:1px solid rgba(255,255,255,.1);margin-bottom:22px;">
+          <button onClick="{{ setStudent }}" style="flex:1;padding:11px;border:none;border-radius:10px;cursor:pointer;font-size:13.5px;font-weight:500;color:#eaf6f6;transition:all .25s;background:{{ roleStudentBg }};">Student</button>
+          <button onClick="{{ setAdmin }}" style="flex:1;padding:11px;border:none;border-radius:10px;cursor:pointer;font-size:13.5px;font-weight:500;color:#eaf6f6;transition:all .25s;background:{{ roleAdminBg }};">Faculty admin</button>
+        </div>
+
+        <label style="display:block;font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:rgba(234,246,246,.5);margin-bottom:8px;">Email</label>
+        <input id="en-email" type="email" value="erica.joshua@my.uwi.edu" style="width:100%;padding:13px 15px;margin-bottom:18px;border-radius:13px;background:rgba(0,0,0,.25);border:1px solid rgba(255,255,255,.12);color:#eaf6f6;font-size:14.5px;outline:none;">
+        <label style="display:block;font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:rgba(234,246,246,.5);margin-bottom:8px;">Password</label>
+        <input id="en-pass" type="password" value="incisor" style="width:100%;padding:13px 15px;margin-bottom:24px;border-radius:13px;background:rgba(0,0,0,.25);border:1px solid rgba(255,255,255,.12);color:#eaf6f6;font-size:14.5px;outline:none;">
+
+        <div style="font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:rgba(234,246,246,.5);margin-bottom:10px;">Theme</div>
+        <div style="display:flex;gap:10px;margin-bottom:28px;">
+          <sc-for list="{{ palettes }}" as="pal" hint-placeholder-count="5">
+            <button onClick="{{ pal.pick }}" title="{{ pal.name }}" style="width:38px;height:38px;border-radius:11px;cursor:pointer;background:{{ pal.swatch }};box-shadow:{{ pal.ring }};border:none;transition:transform .2s;" style-hover="transform:scale(1.1)"></button>
+          </sc-for>
+        </div>
+
+        <button onClick="{{ login }}" style="width:100%;padding:15px;border:none;border-radius:14px;cursor:pointer;font-size:15px;font-weight:600;color:#04212a;background:linear-gradient(140deg,var(--c2),var(--c3));box-shadow:0 12px 34px color-mix(in srgb,var(--c1) 40%,transparent);transition:transform .2s;" style-hover="transform:translateY(-2px)">Enter the studio →</button>
+        <p style="margin:18px 0 0;text-align:center;font-size:11.5px;color:rgba(234,246,246,.4);">Demo workspace · no real authentication</p>
+      </div>
+    </div>
+  </sc-if>
+
+  <sc-if value="{{ isApp }}" hint-placeholder-val="{{ false }}">
+  <div style="position:relative;z-index:2;display:flex;height:100%;">
+
+    <aside style="width:252px;flex-shrink:0;padding:28px 20px;display:flex;flex-direction:column;gap:24px;background:linear-gradient(180deg,rgba(255,255,255,.07),rgba(255,255,255,.015));backdrop-filter:blur(26px) saturate(150%);-webkit-backdrop-filter:blur(26px) saturate(150%);border-right:1px solid rgba(255,255,255,.1);overflow-y:auto;">
+      <div style="display:flex;align-items:center;gap:13px;">
+        <div style="width:40px;height:40px;border-radius:13px;background:linear-gradient(140deg,var(--c2),var(--c3));box-shadow:0 6px 22px color-mix(in srgb,var(--c1) 45%,transparent),inset 0 1px 2px rgba(255,255,255,.7);display:flex;align-items:center;justify-content:center;">
+          <div style="width:13px;height:17px;border-radius:7px 7px 5px 5px;background:#04212a;"></div>
+        </div>
+        <div><div style="font-family:'Instrument Serif',serif;font-size:24px;line-height:1;">Enamel</div><div style="font-size:10px;letter-spacing:.26em;text-transform:uppercase;color:var(--c1);margin-top:3px;">{{ roleLabel }}</div></div>
+      </div>
+
+      <nav style="display:flex;flex-direction:column;gap:3px;">
+        <sc-for list="{{ nav }}" as="item" hint-placeholder-count="4">
+          <button onClick="{{ item.go }}" style="display:flex;align-items:center;gap:13px;width:100%;background:transparent;border:none;color:rgba(234,246,246,.72);padding:11px 14px;border-radius:12px;font-family:inherit;font-size:14.5px;font-weight:500;cursor:pointer;text-align:left;transition:all .25s ease;" style-hover="background:rgba(255,255,255,.08);color:#fff;">
+            <span style="font-size:11px;font-variant-numeric:tabular-nums;opacity:.45;width:14px;">{{ item.num }}</span>
+            <span>{{ item.label }}</span>
+          </button>
+        </sc-for>
+      </nav>
+
+      <button onClick="{{ openAdd }}" style="display:flex;align-items:center;justify-content:center;gap:9px;width:100%;padding:13px;border-radius:13px;cursor:pointer;font-family:inherit;font-size:14px;font-weight:600;color:#04212a;background:linear-gradient(140deg,var(--c2),var(--c3));box-shadow:0 8px 24px color-mix(in srgb,var(--c1) 35%,transparent);border:none;transition:transform .2s;" style-hover="transform:translateY(-2px)"><span style="font-size:18px;line-height:1;">+</span> New patient</button>
+
+      <div style="margin-top:auto;display:flex;flex-direction:column;gap:16px;">
+        <div>
+          <div style="font-size:10.5px;letter-spacing:.16em;text-transform:uppercase;color:rgba(234,246,246,.5);margin-bottom:11px;">Theme</div>
+          <div style="display:flex;gap:9px;flex-wrap:wrap;">
+            <sc-for list="{{ palettes }}" as="pal" hint-placeholder-count="5">
+              <button onClick="{{ pal.pick }}" title="{{ pal.name }}" style="width:32px;height:32px;border-radius:9px;cursor:pointer;background:{{ pal.swatch }};box-shadow:{{ pal.ring }};border:none;transition:transform .2s;" style-hover="transform:scale(1.12)"></button>
+            </sc-for>
+          </div>
+        </div>
+        <div style="display:flex;align-items:center;gap:11px;padding:6px 4px;border-top:1px solid rgba(255,255,255,.08);padding-top:16px;">
+          <div style="width:36px;height:36px;border-radius:11px;background:linear-gradient(140deg,#f7d9c4,#d99f86);"></div>
+          <div style="flex:1;"><div style="font-size:14px;font-weight:600;">{{ userName }}</div><div style="font-size:11px;color:rgba(255,255,255,.5);">{{ userRole }}</div></div>
+          <button onClick="{{ logout }}" title="Sign out" style="background:transparent;border:1px solid rgba(255,255,255,.14);color:rgba(234,246,246,.65);width:32px;height:32px;border-radius:9px;cursor:pointer;font-size:14px;" style-hover="background:rgba(255,255,255,.1);color:#fff;">⎋</button>
+        </div>
+      </div>
+    </aside>
+
+    <main id="en-scroller" style="flex:1;overflow-y:auto;overflow-x:hidden;position:relative;">
+
+      <sc-if value="{{ isStudent }}" hint-placeholder-val="{{ true }}">
+        <section id="sec-overview" style="padding:58px 56px 28px;position:relative;">
+          <p data-reveal="" style="letter-spacing:.34em;text-transform:uppercase;font-size:11.5px;color:var(--c1);margin:0 0 20px;">Student Clinical Workspace</p>
+          <h1 data-reveal="" style="font-family:'Instrument Serif',serif;font-weight:400;font-size:72px;line-height:1.0;margin:0;letter-spacing:-.01em;">Good morning,<br><span style="font-style:italic;color:var(--c2);">Sana.</span></h1>
+          <p data-reveal="" style="max-width:540px;color:rgba(234,246,246,.66);font-size:17px;line-height:1.62;margin:22px 0 0;">Four cases on the chair today, two prospective patients awaiting outreach, and Dr. Lin supervising your afternoon clinic. Open any patient to chart their dentition in 3D.</p>
+          <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:18px;margin-top:40px;">
+            <sc-for list="{{ stats }}" as="s" hint-placeholder-count="4">
+              <div data-reveal="" style="padding:24px;border-radius:20px;background:linear-gradient(140deg,rgba(255,255,255,.08),rgba(255,255,255,.02));backdrop-filter:blur(22px) saturate(140%);-webkit-backdrop-filter:blur(22px) saturate(140%);border:1px solid rgba(255,255,255,.12);box-shadow:0 8px 36px rgba(0,18,26,.3);">
+                <div style="font-family:'Instrument Serif',serif;font-size:46px;line-height:1;color:#dffbfa;">{{ s.value }}</div>
+                <div style="margin-top:10px;font-size:13px;color:rgba(234,246,246,.6);">{{ s.label }}</div>
+                <div style="margin-top:8px;font-size:11.5px;color:{{ s.tone }};">{{ s.delta }}</div>
+              </div>
+            </sc-for>
+          </div>
+        </section>
+
+        <section id="sec-today" style="padding:32px 56px;">
+          <div style="display:flex;align-items:baseline;justify-content:space-between;margin-bottom:22px;">
+            <h2 data-reveal="" style="font-family:'Instrument Serif',serif;font-weight:400;font-size:32px;margin:0;">Today on the chair</h2>
+            <span data-reveal="" style="font-size:13px;color:var(--c1);letter-spacing:.05em;">Tue · 24 Jun · Clinic B</span>
+          </div>
+          <div style="display:flex;gap:18px;overflow-x:auto;padding-bottom:10px;">
+            <sc-for list="{{ schedule }}" as="a" hint-placeholder-count="4">
+              <div data-reveal="" style="min-width:248px;padding:22px;border-radius:20px;background:linear-gradient(140deg,rgba(255,255,255,.085),rgba(255,255,255,.02));backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);border:1px solid rgba(255,255,255,.12);">
+                <div style="display:flex;justify-content:space-between;align-items:center;">
+                  <span style="font-family:'Instrument Serif',serif;font-size:26px;">{{ a.time }}</span>
+                  <span style="font-size:10.5px;letter-spacing:.14em;text-transform:uppercase;padding:5px 10px;border-radius:20px;background:{{ a.kindBg }};color:{{ a.kindFg }};">{{ a.kind }}</span>
+                </div>
+                <div style="margin-top:18px;font-size:16px;font-weight:600;">{{ a.patient }}</div>
+                <div style="margin-top:4px;font-size:13px;color:rgba(234,246,246,.6);">{{ a.proc }}</div>
+                <div style="margin-top:16px;display:flex;gap:14px;font-size:12px;color:rgba(255,255,255,.5);"><span>{{ a.room }}</span><span>·</span><span>{{ a.faculty }}</span></div>
+              </div>
+            </sc-for>
+          </div>
+        </section>
+
+        <section id="sec-patients" style="padding:32px 56px;">
+          <div style="display:flex;align-items:baseline;justify-content:space-between;margin-bottom:22px;">
+            <h2 data-reveal="" style="font-family:'Instrument Serif',serif;font-weight:400;font-size:32px;margin:0;">Your patients</h2>
+            <span data-reveal="" style="font-size:13px;color:rgba(255,255,255,.5);">Click a patient to open their tooth chart</span>
+          </div>
+          <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:18px;">
+            <sc-for list="{{ patients }}" as="p" hint-placeholder-count="6">
+              <button onClick="{{ p.open }}" data-reveal="" style="text-align:left;cursor:pointer;padding:22px;border-radius:20px;display:flex;flex-direction:column;gap:15px;background:linear-gradient(140deg,rgba(255,255,255,.08),rgba(255,255,255,.02));backdrop-filter:blur(20px) saturate(140%);-webkit-backdrop-filter:blur(20px) saturate(140%);border:1px solid rgba(255,255,255,.12);box-shadow:0 8px 30px rgba(0,18,26,.28);font-family:inherit;color:inherit;transition:transform .35s cubic-bezier(.2,.8,.2,1),border-color .35s ease,box-shadow .35s ease;" style-hover="transform:translateY(-5px);border-color:color-mix(in srgb,var(--c1) 55%,transparent);box-shadow:0 20px 50px rgba(0,30,40,.45);">
+                <div style="display:flex;justify-content:space-between;align-items:flex-start;">
+                  <div style="display:flex;gap:13px;align-items:center;">
+                    <div style="width:44px;height:44px;border-radius:13px;background:{{ p.tone }};box-shadow:inset 0 1px 2px rgba(255,255,255,.5);"></div>
+                    <div><div style="font-size:16px;font-weight:600;">{{ p.name }}</div><div style="font-size:12.5px;color:rgba(234,246,246,.55);margin-top:2px;">{{ p.meta }}</div></div>
+                  </div>
+                  <span style="font-size:10.5px;letter-spacing:.1em;text-transform:uppercase;padding:5px 10px;border-radius:20px;background:{{ p.statusBg }};color:{{ p.statusFg }};">{{ p.status }}</span>
+                </div>
+                <div style="height:1px;background:rgba(255,255,255,.1);"></div>
+                <div style="font-size:13.5px;color:rgba(234,246,246,.7);">{{ p.procedure }}</div>
+                <div style="display:flex;justify-content:space-between;align-items:center;">
+                  <span style="display:inline-flex;align-items:center;gap:7px;font-size:12px;color:#ff9b9b;"><span style="width:8px;height:8px;border-radius:50%;background:#ff5a5a;box-shadow:0 0 10px #ff5a5a;"></span>{{ p.badCount }} flagged</span>
+                  <span style="font-size:12.5px;color:rgba(255,255,255,.5);">{{ p.next }}</span>
+                </div>
+              </button>
+            </sc-for>
+          </div>
+        </section>
+
+        <section id="sec-prospects" style="padding:32px 56px;">
+          <h2 data-reveal="" style="font-family:'Instrument Serif',serif;font-weight:400;font-size:32px;margin:0 0 22px;">Prospective patients</h2>
+          <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:16px;">
+            <sc-for list="{{ prospects }}" as="p" hint-placeholder-count="4">
+              <div data-reveal="" style="padding:20px;border-radius:18px;background:linear-gradient(140deg,rgba(255,255,255,.06),rgba(255,255,255,.015));border:1px dashed color-mix(in srgb,var(--c1) 30%,transparent);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);">
+                <span style="font-size:10.5px;letter-spacing:.12em;text-transform:uppercase;color:{{ p.stageFg }};">{{ p.stage }}</span>
+                <div style="margin-top:13px;font-size:15.5px;font-weight:600;">{{ p.name }}</div>
+                <div style="margin-top:5px;font-size:13px;color:rgba(234,246,246,.62);">{{ p.interest }}</div>
+                <div style="margin-top:16px;display:flex;align-items:center;gap:8px;font-size:11.5px;color:rgba(255,255,255,.48);"><span style="width:6px;height:6px;border-radius:50%;background:var(--c1);"></span>{{ p.source }}</div>
+              </div>
+            </sc-for>
+          </div>
+        </section>
+
+        <section id="sec-schedule" style="padding:32px 56px 90px;">
+          <h2 data-reveal="" style="font-family:'Instrument Serif',serif;font-weight:400;font-size:32px;margin:0 0 22px;">This week &amp; requirements</h2>
+          <div style="display:grid;grid-template-columns:1.4fr 1fr;gap:18px;">
+            <div data-reveal="" style="padding:26px;border-radius:22px;background:linear-gradient(140deg,rgba(255,255,255,.07),rgba(255,255,255,.02));backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);border:1px solid rgba(255,255,255,.12);">
+              <div style="font-size:12px;letter-spacing:.18em;text-transform:uppercase;color:var(--c1);margin-bottom:18px;">Upcoming bookings</div>
+              <div style="display:flex;flex-direction:column;gap:2px;">
+                <sc-for list="{{ week }}" as="w" hint-placeholder-count="5">
+                  <div style="display:flex;align-items:center;gap:18px;padding:14px 0;border-bottom:1px solid rgba(255,255,255,.07);">
+                    <div style="width:70px;font-family:'Instrument Serif',serif;font-size:18px;color:var(--c2);">{{ w.day }}</div>
+                    <div style="width:64px;font-size:13px;color:rgba(255,255,255,.55);font-variant-numeric:tabular-nums;">{{ w.time }}</div>
+                    <div style="flex:1;font-size:14.5px;">{{ w.patient }}</div>
+                    <div style="font-size:13px;color:rgba(234,246,246,.6);">{{ w.proc }}</div>
+                    <div style="font-size:12px;color:var(--c1);width:60px;text-align:right;">{{ w.room }}</div>
+                  </div>
+                </sc-for>
+              </div>
+            </div>
+            <div data-reveal="" style="padding:26px;border-radius:22px;background:linear-gradient(140deg,rgba(255,255,255,.07),rgba(255,255,255,.02));backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);border:1px solid rgba(255,255,255,.12);">
+              <div style="font-size:12px;letter-spacing:.18em;text-transform:uppercase;color:var(--c1);margin-bottom:18px;">Competency requirements</div>
+              <div style="display:flex;flex-direction:column;gap:18px;">
+                <sc-for list="{{ reqs }}" as="r" hint-placeholder-count="4">
+                  <div>
+                    <div style="display:flex;justify-content:space-between;font-size:14px;margin-bottom:9px;"><span>{{ r.label }}</span><span style="color:rgba(255,255,255,.55);">{{ r.txt }}</span></div>
+                    <div style="height:7px;border-radius:7px;background:rgba(255,255,255,.12);overflow:hidden;"><div data-bar="" style="height:100%;width:{{ r.width }};border-radius:7px;background:linear-gradient(90deg,var(--c2),var(--c3));"></div></div>
+                  </div>
+                </sc-for>
+              </div>
+            </div>
+          </div>
+        </section>
+      </sc-if>
+
+      <sc-if value="{{ isAdmin }}" hint-placeholder-val="{{ false }}">
+        <section id="sec-overview" style="padding:58px 56px 28px;">
+          <p data-reveal="" style="letter-spacing:.34em;text-transform:uppercase;font-size:11.5px;color:var(--c1);margin:0 0 20px;">Faculty Command</p>
+          <h1 data-reveal="" style="font-family:'Instrument Serif',serif;font-weight:400;font-size:72px;line-height:1.0;margin:0;">Clinic <span style="font-style:italic;color:var(--c2);">overview.</span></h1>
+          <p data-reveal="" style="max-width:560px;color:rgba(234,246,246,.66);font-size:17px;line-height:1.62;margin:22px 0 0;">Supervising 6 student clinicians across Clinic B. {{ pendingCount }} items are awaiting your approval, and chair utilization is holding at 82% this week.</p>
+          <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:18px;margin-top:40px;">
+            <sc-for list="{{ adminStats }}" as="s" hint-placeholder-count="4">
+              <div data-reveal="" style="padding:24px;border-radius:20px;background:linear-gradient(140deg,rgba(255,255,255,.08),rgba(255,255,255,.02));backdrop-filter:blur(22px) saturate(140%);-webkit-backdrop-filter:blur(22px) saturate(140%);border:1px solid rgba(255,255,255,.12);box-shadow:0 8px 36px rgba(0,18,26,.3);">
+                <div style="font-family:'Instrument Serif',serif;font-size:46px;line-height:1;color:#dffbfa;">{{ s.value }}</div>
+                <div style="margin-top:10px;font-size:13px;color:rgba(234,246,246,.6);">{{ s.label }}</div>
+                <div style="margin-top:8px;font-size:11.5px;color:{{ s.tone }};">{{ s.delta }}</div>
+              </div>
+            </sc-for>
+          </div>
+        </section>
+
+        <section id="sec-approvals" style="padding:32px 56px;">
+          <div style="display:flex;align-items:baseline;justify-content:space-between;margin-bottom:22px;">
+            <h2 data-reveal="" style="font-family:'Instrument Serif',serif;font-weight:400;font-size:32px;margin:0;">Approvals queue</h2>
+            <span data-reveal="" style="font-size:13px;color:var(--c1);">{{ pendingCount }} pending</span>
+          </div>
+          <sc-if value="{{ hasApprovals }}" hint-placeholder-val="{{ true }}">
+            <div style="display:flex;flex-direction:column;gap:12px;">
+              <sc-for list="{{ approvals }}" as="ap" hint-placeholder-count="3">
+                <div data-reveal="" style="display:flex;align-items:center;gap:20px;padding:18px 22px;border-radius:18px;background:linear-gradient(140deg,rgba(255,255,255,.07),rgba(255,255,255,.02));backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px);border:1px solid rgba(255,255,255,.12);">
+                  <span style="font-size:10.5px;letter-spacing:.12em;text-transform:uppercase;padding:6px 12px;border-radius:20px;background:color-mix(in srgb,var(--c1) 16%,transparent);color:var(--c1);">{{ ap.type }}</span>
+                  <div style="flex:1;"><div style="font-size:15px;font-weight:600;">{{ ap.item }}</div><div style="font-size:12.5px;color:rgba(234,246,246,.55);margin-top:3px;">Requested by {{ ap.student }}</div></div>
+                  <button onClick="{{ ap.deny }}" style="padding:9px 16px;border-radius:11px;cursor:pointer;font-family:inherit;font-size:13px;background:transparent;border:1px solid rgba(255,255,255,.16);color:rgba(234,246,246,.7);" style-hover="background:rgba(255,90,90,.14);border-color:rgba(255,90,90,.4);color:#ff9b9b;">Deny</button>
+                  <button onClick="{{ ap.approve }}" style="padding:9px 18px;border-radius:11px;cursor:pointer;font-family:inherit;font-size:13px;font-weight:600;color:#04212a;background:linear-gradient(140deg,var(--c2),var(--c3));border:none;" style-hover="transform:translateY(-1px)">Approve</button>
+                </div>
+              </sc-for>
+            </div>
+          </sc-if>
+          <sc-if value="{{ noApprovals }}" hint-placeholder-val="{{ false }}">
+            <div data-reveal="" style="padding:30px;text-align:center;border-radius:18px;background:rgba(255,255,255,.03);border:1px dashed rgba(255,255,255,.14);color:rgba(234,246,246,.5);font-size:14px;">All caught up — no pending approvals.</div>
+          </sc-if>
+        </section>
+
+        <section id="sec-students" style="padding:32px 56px;">
+          <h2 data-reveal="" style="font-family:'Instrument Serif',serif;font-weight:400;font-size:32px;margin:0 0 22px;">Student clinicians</h2>
+          <div data-reveal="" style="border-radius:22px;overflow:hidden;background:linear-gradient(140deg,rgba(255,255,255,.06),rgba(255,255,255,.015));backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);border:1px solid rgba(255,255,255,.12);">
+            <div style="display:grid;grid-template-columns:1.6fr .6fr .8fr 1.4fr .9fr;gap:14px;padding:16px 26px;font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:rgba(234,246,246,.45);border-bottom:1px solid rgba(255,255,255,.1);">
+              <span>Student</span><span>Year</span><span>Cases</span><span>Requirements</span><span>Status</span>
+            </div>
+            <sc-for list="{{ students }}" as="st" hint-placeholder-count="6">
+              <div style="display:grid;grid-template-columns:1.6fr .6fr .8fr 1.4fr .9fr;gap:14px;padding:16px 26px;align-items:center;border-bottom:1px solid rgba(255,255,255,.06);">
+                <div style="display:flex;align-items:center;gap:12px;"><div style="width:34px;height:34px;border-radius:10px;background:{{ st.tone }};"></div><span style="font-size:14.5px;font-weight:500;">{{ st.name }}</span></div>
+                <span style="font-size:13.5px;color:rgba(234,246,246,.7);">{{ st.year }}</span>
+                <span style="font-size:13.5px;color:rgba(234,246,246,.7);font-variant-numeric:tabular-nums;">{{ st.cases }}</span>
+                <div style="display:flex;align-items:center;gap:11px;"><div style="flex:1;height:6px;border-radius:6px;background:rgba(255,255,255,.12);overflow:hidden;"><div style="height:100%;width:{{ st.width }};border-radius:6px;background:linear-gradient(90deg,var(--c2),var(--c3));"></div></div><span style="font-size:12px;color:rgba(255,255,255,.55);width:34px;">{{ st.txt }}</span></div>
+                <span style="justify-self:start;font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;padding:5px 11px;border-radius:20px;background:{{ st.statusBg }};color:{{ st.statusFg }};">{{ st.status }}</span>
+              </div>
+            </sc-for>
+          </div>
+        </section>
+
+        <section id="sec-patients" style="padding:32px 56px 90px;">
+          <h2 data-reveal="" style="font-family:'Instrument Serif',serif;font-weight:400;font-size:32px;margin:0 0 22px;">Patients in system</h2>
+          <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:18px;">
+            <sc-for list="{{ patients }}" as="p" hint-placeholder-count="6">
+              <button onClick="{{ p.open }}" data-reveal="" style="text-align:left;cursor:pointer;padding:22px;border-radius:20px;display:flex;flex-direction:column;gap:15px;background:linear-gradient(140deg,rgba(255,255,255,.08),rgba(255,255,255,.02));backdrop-filter:blur(20px) saturate(140%);-webkit-backdrop-filter:blur(20px) saturate(140%);border:1px solid rgba(255,255,255,.12);box-shadow:0 8px 30px rgba(0,18,26,.28);font-family:inherit;color:inherit;transition:transform .35s cubic-bezier(.2,.8,.2,1),border-color .35s ease;" style-hover="transform:translateY(-5px);border-color:color-mix(in srgb,var(--c1) 55%,transparent);">
+                <div style="display:flex;justify-content:space-between;align-items:flex-start;">
+                  <div style="display:flex;gap:13px;align-items:center;">
+                    <div style="width:44px;height:44px;border-radius:13px;background:{{ p.tone }};box-shadow:inset 0 1px 2px rgba(255,255,255,.5);"></div>
+                    <div><div style="font-size:16px;font-weight:600;">{{ p.name }}</div><div style="font-size:12.5px;color:rgba(234,246,246,.55);margin-top:2px;">{{ p.meta }}</div></div>
+                  </div>
+                  <span style="font-size:10.5px;letter-spacing:.1em;text-transform:uppercase;padding:5px 10px;border-radius:20px;background:{{ p.statusBg }};color:{{ p.statusFg }};">{{ p.status }}</span>
+                </div>
+                <div style="height:1px;background:rgba(255,255,255,.1);"></div>
+                <div style="font-size:13.5px;color:rgba(234,246,246,.7);">{{ p.procedure }}</div>
+                <div style="display:flex;justify-content:space-between;align-items:center;">
+                  <span style="display:inline-flex;align-items:center;gap:7px;font-size:12px;color:#ff9b9b;"><span style="width:8px;height:8px;border-radius:50%;background:#ff5a5a;box-shadow:0 0 10px #ff5a5a;"></span>{{ p.badCount }} flagged</span>
+                  <span style="font-size:12.5px;color:rgba(255,255,255,.5);">{{ p.next }}</span>
+                </div>
+              </button>
+            </sc-for>
+          </div>
+        </section>
+      </sc-if>
+
+    </main>
+  </div>
+  </sc-if>
+
+  <sc-if value="{{ isOpen }}" hint-placeholder-val="{{ false }}">
+    <div onClick="{{ closePatient }}" style="position:absolute;inset:0;z-index:40;background:rgba(2,8,11,.55);backdrop-filter:blur(3px);-webkit-backdrop-filter:blur(3px);"></div>
+    <div id="en-panel" style="position:absolute;top:0;right:0;bottom:0;width:640px;max-width:92vw;z-index:41;background:linear-gradient(160deg,rgba(16,38,44,.92),rgba(6,16,21,.96));backdrop-filter:blur(34px) saturate(150%);-webkit-backdrop-filter:blur(34px) saturate(150%);border-left:1px solid color-mix(in srgb,var(--c1) 20%,transparent);box-shadow:-30px 0 80px rgba(0,0,0,.5);overflow-y:auto;">
+      <div style="padding:30px 34px 0;display:flex;justify-content:space-between;align-items:flex-start;">
+        <div>
+          <span style="font-size:10.5px;letter-spacing:.18em;text-transform:uppercase;color:var(--c1);">Tooth chart</span>
+          <h2 style="font-family:'Instrument Serif',serif;font-weight:400;font-size:38px;margin:8px 0 4px;">{{ current.name }}</h2>
+          <div style="font-size:13.5px;color:rgba(234,246,246,.6);">{{ current.meta }} · {{ current.faculty }}</div>
+        </div>
+        <button onClick="{{ closePatient }}" style="width:40px;height:40px;border-radius:12px;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.14);color:#fff;font-size:18px;cursor:pointer;line-height:1;" style-hover="background:rgba(255,255,255,.16);">✕</button>
+      </div>
+
+      <div style="margin:22px 24px 0;border-radius:20px;overflow:hidden;background:radial-gradient(120% 120% at 50% 0%,color-mix(in srgb,var(--c1) 12%,transparent),rgba(0,0,0,.3));border:1px solid rgba(255,255,255,.1);position:relative;">
+        <canvas id="en-teeth" style="width:100%;height:360px;display:block;cursor:grab;"></canvas>
+        <div id="en-tip" style="position:absolute;left:0;top:0;pointer-events:none;opacity:0;transform:translate(-50%,-135%);padding:6px 11px;border-radius:9px;background:rgba(6,16,20,.92);border:1px solid color-mix(in srgb,var(--c1) 30%,transparent);font-size:12px;white-space:nowrap;z-index:6;transition:opacity .15s;box-shadow:0 6px 18px rgba(0,0,0,.4);"></div>
+        <div style="position:absolute;bottom:12px;left:0;right:0;text-align:center;font-size:11.5px;letter-spacing:.06em;color:rgba(234,246,246,.55);pointer-events:none;">Click a tooth to flag · drag to rotate</div>
+      </div>
+
+      <div style="padding:24px 34px;">
+        <div style="display:flex;gap:14px;margin-bottom:24px;">
+          <div style="flex:1;padding:16px;border-radius:16px;background:rgba(255,90,90,.1);border:1px solid rgba(255,90,90,.25);">
+            <div style="font-family:'Instrument Serif',serif;font-size:34px;color:#ff8f8f;">{{ flaggedCount }}</div>
+            <div style="font-size:12px;color:rgba(255,180,180,.8);margin-top:2px;">Flagged teeth</div>
+          </div>
+          <div style="flex:1;padding:16px;border-radius:16px;background:color-mix(in srgb,var(--c1) 10%,transparent);border:1px solid color-mix(in srgb,var(--c1) 22%,transparent);">
+            <div style="font-family:'Instrument Serif',serif;font-size:34px;color:var(--c2);">{{ current.nextShort }}</div>
+            <div style="font-size:12px;color:var(--c1);margin-top:2px;">Next appointment</div>
+          </div>
+        </div>
+
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;">
+          <div style="font-size:12px;letter-spacing:.16em;text-transform:uppercase;color:var(--c1);">Charted findings</div>
+          <button onClick="{{ resetTeeth }}" style="background:transparent;border:1px solid rgba(255,255,255,.16);color:rgba(234,246,246,.7);font-family:inherit;font-size:12px;padding:6px 12px;border-radius:20px;cursor:pointer;" style-hover="background:rgba(255,255,255,.08);">Clear all</button>
+        </div>
+
+        <sc-if value="{{ hasFlags }}" hint-placeholder-val="{{ true }}">
+          <div style="display:flex;flex-direction:column;gap:8px;">
+            <sc-for list="{{ flagged }}" as="f" hint-placeholder-count="3">
+              <div style="display:flex;align-items:center;gap:14px;padding:13px 16px;border-radius:14px;background:rgba(255,255,255,.04);border:1px solid rgba(255,90,90,.22);">
+                <span style="width:9px;height:9px;border-radius:50%;background:#ff5a5a;box-shadow:0 0 10px #ff5a5a;"></span>
+                <span style="font-family:'Instrument Serif',serif;font-size:19px;width:60px;">{{ f.tooth }}</span>
+                <span style="flex:1;font-size:14px;color:rgba(234,246,246,.85);">{{ f.label }}</span>
+                <span style="font-size:12px;color:rgba(255,255,255,.4);">{{ f.note }}</span>
+                <button onClick="{{ f.remove }}" style="background:transparent;border:none;color:rgba(255,255,255,.4);cursor:pointer;font-size:15px;" style-hover="color:#fff;">✕</button>
+              </div>
+            </sc-for>
+          </div>
+        </sc-if>
+        <sc-if value="{{ noFlags }}" hint-placeholder-val="{{ false }}">
+          <div style="padding:26px;text-align:center;border-radius:16px;background:rgba(255,255,255,.03);border:1px dashed rgba(255,255,255,.14);color:rgba(234,246,246,.5);font-size:14px;">No findings charted. Click any tooth to flag pathology.</div>
+        </sc-if>
+      </div>
+    </div>
+  </sc-if>
+
+  <sc-if value="{{ addOpen }}" hint-placeholder-val="{{ false }}">
+    <div onClick="{{ closeAdd }}" style="position:absolute;inset:0;z-index:42;background:rgba(2,8,11,.55);backdrop-filter:blur(3px);-webkit-backdrop-filter:blur(3px);"></div>
+    <div style="position:absolute;top:0;right:0;bottom:0;width:520px;max-width:92vw;z-index:43;background:linear-gradient(160deg,rgba(16,38,44,.94),rgba(6,16,21,.97));backdrop-filter:blur(34px) saturate(150%);-webkit-backdrop-filter:blur(34px) saturate(150%);border-left:1px solid color-mix(in srgb,var(--c1) 20%,transparent);box-shadow:-30px 0 80px rgba(0,0,0,.5);overflow-y:auto;padding:34px;">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:28px;">
+        <div>
+          <span style="font-size:10.5px;letter-spacing:.18em;text-transform:uppercase;color:var(--c1);">New record</span>
+          <h2 style="font-family:'Instrument Serif',serif;font-weight:400;font-size:34px;margin:8px 0 0;">Add a patient</h2>
+        </div>
+        <button onClick="{{ closeAdd }}" style="width:40px;height:40px;border-radius:12px;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.14);color:#fff;font-size:18px;cursor:pointer;line-height:1;" style-hover="background:rgba(255,255,255,.16);">✕</button>
+      </div>
+
+      <label style="display:block;font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:rgba(234,246,246,.5);margin-bottom:8px;">Full name</label>
+      <input id="np-name" placeholder="e.g. Jordan Avery" style="width:100%;padding:13px 15px;margin-bottom:18px;border-radius:13px;background:rgba(0,0,0,.25);border:1px solid rgba(255,255,255,.12);color:#eaf6f6;font-size:14.5px;outline:none;">
+
+      <div style="display:flex;gap:14px;">
+        <div style="flex:1;">
+          <label style="display:block;font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:rgba(234,246,246,.5);margin-bottom:8px;">Age</label>
+          <input id="np-age" type="number" placeholder="34" style="width:100%;padding:13px 15px;margin-bottom:18px;border-radius:13px;background:rgba(0,0,0,.25);border:1px solid rgba(255,255,255,.12);color:#eaf6f6;font-size:14.5px;outline:none;">
+        </div>
+        <div style="flex:1.4;">
+          <label style="display:block;font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:rgba(234,246,246,.5);margin-bottom:8px;">Supervising faculty</label>
+          <select id="np-fac" style="width:100%;padding:13px 15px;margin-bottom:18px;border-radius:13px;background:rgba(0,0,0,.25);border:1px solid rgba(255,255,255,.12);color:#eaf6f6;font-size:14.5px;outline:none;">
+            <option>Dr. Lin</option><option>Dr. Okada</option><option>Dr. Bell</option>
+          </select>
+        </div>
+      </div>
+
+      <div style="display:flex;gap:14px;">
+        <div style="flex:1;">
+          <label style="display:block;font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:rgba(234,246,246,.5);margin-bottom:8px;">Status</label>
+          <select id="np-status" style="width:100%;padding:13px 15px;margin-bottom:18px;border-radius:13px;background:rgba(0,0,0,.25);border:1px solid rgba(255,255,255,.12);color:#eaf6f6;font-size:14.5px;outline:none;">
+            <option>New</option><option>Active</option><option>Recall</option>
+          </select>
+        </div>
+        <div style="flex:1;">
+          <label style="display:block;font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:rgba(234,246,246,.5);margin-bottom:8px;">First appointment</label>
+          <input id="np-next" placeholder="Unscheduled" style="width:100%;padding:13px 15px;margin-bottom:18px;border-radius:13px;background:rgba(0,0,0,.25);border:1px solid rgba(255,255,255,.12);color:#eaf6f6;font-size:14.5px;outline:none;">
+        </div>
+      </div>
+
+      <label style="display:block;font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:rgba(234,246,246,.5);margin-bottom:8px;">Planned procedure</label>
+      <input id="np-proc" placeholder="e.g. Initial exam &amp; charting" style="width:100%;padding:13px 15px;margin-bottom:28px;border-radius:13px;background:rgba(0,0,0,.25);border:1px solid rgba(255,255,255,.12);color:#eaf6f6;font-size:14.5px;outline:none;">
+
+      <button onClick="{{ submitAdd }}" style="width:100%;padding:15px;border:none;border-radius:14px;cursor:pointer;font-size:15px;font-weight:600;color:#04212a;background:linear-gradient(140deg,var(--c2),var(--c3));box-shadow:0 12px 34px color-mix(in srgb,var(--c1) 40%,transparent);transition:transform .2s;" style-hover="transform:translateY(-2px)">Add to patient list</button>
+    </div>
+  </sc-if>
+
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;:{&quot;width&quot;:1280,&quot;height&quot;:820},&quot;waterIntensity&quot;:{&quot;editor&quot;:&quot;float&quot;,&quot;default&quot;:1,&quot;min&quot;:0.2,&quot;max&quot;:2,&quot;step&quot;:0.1,&quot;tsType&quot;:&quot;number&quot;}}">
+class Component extends DCLogic {
+  constructor(props){
+    super(props);
+    const TONE=['#7be0d6','#f7c6a8','#a8c7f7','#d6b8f0','#bfe9a8','#f0b8c8','#a8e0f7','#f7d9a8'];
+    const patients=[
+      {id:'p1',name:'Amara Okafor',age:29,faculty:'Dr. Lin',status:'Active',procedure:'Composite restoration · #14',next:'Today · 2:30 PM',badTeeth:['U6','L4']},
+      {id:'p2',name:'Theo Marsh',age:41,faculty:'Dr. Okada',status:'Recall',procedure:'Scaling & root planing',next:'Thu · 1:00 PM',badTeeth:['U3','U10','L8']},
+      {id:'p3',name:'Priya Nair',age:23,faculty:'Dr. Lin',status:'Active',procedure:'Orthodontic review',next:'Mon · 11:00 AM',badTeeth:['L1']},
+      {id:'p4',name:'Diego Ramos',age:35,faculty:'Dr. Bell',status:'New',procedure:'Initial exam & charting',next:'Fri · 10:00 AM',badTeeth:[]},
+      {id:'p5',name:'Hana Yusuf',age:52,faculty:'Dr. Okada',status:'Active',procedure:'Crown prep · #19',next:'Today · 3:15 PM',badTeeth:['L7','L6','U11']},
+      {id:'p6',name:'Leo Brandt',age:18,faculty:'Dr. Bell',status:'Recall',procedure:'Sealants & fluoride',next:'Wed · 9:30 AM',badTeeth:['U7']},
+    ];
+    const flaggedMap={};
+    patients.forEach((p,i)=>{ flaggedMap[p.id]=p.badTeeth.slice(); p.tone=TONE[i%TONE.length]; });
+    this._tones=TONE;
+    this.palettes=[
+      {name:'Lagoon',  c1:'#7be0d6',c2:'#9ff3ea',c3:'#3aa9c4', water:{deep:[0.016,0.05,0.075],mid:[0.03,0.15,0.2],acc:[0.22,0.78,0.74]}},
+      {name:'Amethyst',c1:'#c2a6f5',c2:'#ddc8ff',c3:'#7a57c4', water:{deep:[0.05,0.03,0.085],mid:[0.12,0.07,0.21],acc:[0.6,0.45,0.92]}},
+      {name:'Coral',   c1:'#f7ad97',c2:'#ffcdbd',c3:'#d97658', water:{deep:[0.08,0.04,0.04],mid:[0.21,0.1,0.085],acc:[0.96,0.55,0.45]}},
+      {name:'Emerald', c1:'#86e3aa',c2:'#c2ffd9',c3:'#379c66', water:{deep:[0.02,0.06,0.04],mid:[0.05,0.18,0.12],acc:[0.4,0.86,0.55]}},
+      {name:'Ice',     c1:'#b6c8d8',c2:'#e0ecf5',c3:'#6a8aa3', water:{deep:[0.03,0.045,0.062],mid:[0.1,0.14,0.185],acc:[0.74,0.84,0.92]}},
+    ];
+    this.data={
+      students:[
+        {name:'Sana Reyes',year:'Y3',cases:42,pct:68,status:'On track'},
+        {name:'Marcus Lee',year:'Y3',cases:38,pct:61,status:'On track'},
+        {name:'Aisha Bello',year:'Y4',cases:71,pct:88,status:'Ahead'},
+        {name:'Tom Becker',year:'Y2',cases:19,pct:34,status:'Behind'},
+        {name:'Yuki Tanaka',year:'Y4',cases:64,pct:79,status:'On track'},
+        {name:'Omar Haddad',year:'Y3',cases:33,pct:52,status:'Behind'},
+      ],
+    };
+    this.state={
+      screen:'login', role:'student', palette:0,
+      patients, flaggedMap, selectedId:null, addOpen:false,
+      approvals:[
+        {id:'a1',student:'Tom Becker',item:'Patient assignment · R. Delgado',type:'Assignment'},
+        {id:'a2',student:'Sana Reyes',item:'Case sign-off · Composite #14',type:'Sign-off'},
+        {id:'a3',student:'Omar Haddad',item:'Extraction clearance · #17',type:'Clearance'},
+      ],
+    };
+  }
+
+  componentDidMount(){
+    this._mouse={x:.5,y:.5,tx:.5,ty:.5};
+    this._initMotion();
+    this._applyPalette(this.state.palette);
+    this._waitLibs(()=>{ try{ this._initBG(); }catch(e){ console.warn('bg',e); } });
+  }
+  _waitLibs(cb){ let n=0; const t=setInterval(()=>{ n++; if(window.THREE){ clearInterval(t); cb(); } else if(n>150){ clearInterval(t); } },40); }
+
+  /* ---------- palette ---------- */
+  _applyPalette(i){
+    const p=this.palettes[i]; const root=document.getElementById('en-root');
+    if(root){ root.style.setProperty('--c1',p.c1); root.style.setProperty('--c2',p.c2); root.style.setProperty('--c3',p.c3); }
+    try{ document.documentElement.style.setProperty('--c1',p.c1); }catch(e){}
+    if(this._bg){ const w=p.water; this._bg.u.u_deep.value.set(w.deep[0],w.deep[1],w.deep[2]); this._bg.u.u_mid.value.set(w.mid[0],w.mid[1],w.mid[2]); this._bg.u.u_acc.value.set(w.acc[0],w.acc[1],w.acc[2]); }
+  }
+  setPalette(i){ this.setState({palette:i}); this._applyPalette(i); }
+
+  /* ---------- watery background ---------- */
+  _initBG(){
+    const THREE=window.THREE; const canvas=document.getElementById('en-bg'); if(!canvas) return;
+    const r=new THREE.WebGLRenderer({canvas,antialias:true}); r.setPixelRatio(Math.min(2,devicePixelRatio));
+    const scene=new THREE.Scene(); const cam=new THREE.OrthographicCamera(-1,1,1,-1,0,1);
+    const w=this.palettes[this.state.palette].water;
+    const u={ u_time:{value:0}, u_mouse:{value:new THREE.Vector2(.5,.5)}, u_res:{value:new THREE.Vector2(1,1)}, u_int:{value:this.props.waterIntensity??1},
+      u_deep:{value:new THREE.Vector3(w.deep[0],w.deep[1],w.deep[2])}, u_mid:{value:new THREE.Vector3(w.mid[0],w.mid[1],w.mid[2])}, u_acc:{value:new THREE.Vector3(w.acc[0],w.acc[1],w.acc[2])} };
+    const mat=new THREE.ShaderMaterial({uniforms:u, vertexShader:'varying vec2 vUv; void main(){ vUv=uv; gl_Position=vec4(position,1.0); }', fragmentShader:`
+      precision highp float; varying vec2 vUv;
+      uniform float u_time,u_int; uniform vec2 u_mouse,u_res; uniform vec3 u_deep,u_mid,u_acc;
+      float hash(vec2 p){ p=fract(p*vec2(123.34,456.21)); p+=dot(p,p+45.32); return fract(p.x*p.y); }
+      float noise(vec2 p){ vec2 i=floor(p),f=fract(p); float a=hash(i),b=hash(i+vec2(1,0)),c=hash(i+vec2(0,1)),d=hash(i+vec2(1,1)); vec2 u=f*f*(3.0-2.0*f); return mix(a,b,u.x)+(c-a)*u.y*(1.0-u.x)+(d-b)*u.x*u.y; }
+      float fbm(vec2 p){ float v=0.0,a=0.5; for(int i=0;i<5;i++){ v+=a*noise(p); p*=2.0; a*=0.5; } return v; }
+      void main(){
+        vec2 uv=vUv; float asp=u_res.x/u_res.y; vec2 p=vec2(uv.x*asp,uv.y); vec2 m=vec2(u_mouse.x*asp,u_mouse.y);
+        float t=u_time*0.06*u_int;
+        vec2 q=vec2(fbm(p*1.6+t), fbm(p*1.6+vec2(5.2,1.3)));
+        vec2 rr=vec2(fbm(p*1.6+1.8*q+vec2(1.7,9.2)+0.15*t), fbm(p*1.6+1.8*q+vec2(8.3,2.8)-0.12*t));
+        float f=fbm(p*1.6+1.8*rr);
+        float d=distance(p,m);
+        f+=sin(d*16.0-u_time*1.4)*exp(-d*3.0)*0.5*u_int;
+        vec3 col=mix(u_deep,u_mid,clamp(f*1.6,0.0,1.0));
+        col=mix(col,u_acc,clamp(length(rr)-0.35,0.0,1.0)*0.55);
+        col+=u_acc*exp(-d*2.6)*0.35;
+        col+=pow(clamp(fbm(p*3.0+rr*2.0+t*2.0),0.0,1.0),3.0)*0.22;
+        col=pow(col,vec3(0.92));
+        gl_FragColor=vec4(col,1.0);
+      }`});
+    scene.add(new THREE.Mesh(new THREE.PlaneGeometry(2,2),mat));
+    const resize=()=>{ const ww=canvas.clientWidth||innerWidth,hh=canvas.clientHeight||innerHeight; r.setSize(ww,hh,false); u.u_res.value.set(ww,hh); };
+    resize(); window.addEventListener('resize',resize);
+    this._bg={r,scene,cam,u};
+    const loop=()=>{ this._bgRaf=requestAnimationFrame(loop); const mo=this._mouse; mo.x+=(mo.tx-mo.x)*0.06; mo.y+=(mo.ty-mo.y)*0.06; u.u_mouse.value.set(mo.x,mo.y); u.u_time.value+=0.016; r.render(scene,cam); };
+    loop();
+  }
+
+  /* ---------- motion ---------- */
+  _initMotion(){
+    window.addEventListener('mousemove',(e)=>{
+      const nx=e.clientX/innerWidth, ny=e.clientY/innerHeight; this._mouse.tx=nx; this._mouse.ty=1-ny;
+      document.querySelectorAll('[data-depth]').forEach(b=>{ const dp=+b.getAttribute('data-depth'); b.style.transform=`translate(${(nx-.5)*dp}px,${(ny-.5)*dp}px)`; });
+    });
+    this._revealScan();
+  }
+  _revealScan(){
+    const sc=document.getElementById('en-scroller');
+    const els=Array.prototype.slice.call(document.querySelectorAll('[data-reveal]:not([data-seen])'));
+    if(!els.length){ setTimeout(()=>this._revealScan(),250); return; }
+    const G=window.gsap;
+    const show=(el)=>{ if(el._shown) return; el._shown=true; if(G){ G.to(el,{opacity:1,y:0,duration:.85,ease:'power3.out'}); } else { el.style.opacity=1; el.style.transform='none'; } };
+    const inView=(el)=>{ const r=el.getBoundingClientRect(); const sr=sc?sc.getBoundingClientRect():{top:0,bottom:innerHeight}; return r.top<sr.bottom+60 && r.bottom>sr.top-60; };
+    let i=0;
+    els.forEach(el=>{ el.setAttribute('data-seen','1'); if(G){ G.set(el,{opacity:0,y:26}); } else { el.style.opacity=0; } if(inView(el)){ const d=i++*60; setTimeout(()=>show(el),100+d); } });
+    try{
+      const io=new IntersectionObserver((ents)=>{ ents.forEach(en=>{ if(en.isIntersecting) show(en.target); }); },{root:sc||null,rootMargin:'0px 0px -8% 0px',threshold:0.08});
+      els.forEach(el=>{ if(!el._shown) io.observe(el); });
+    }catch(e){}
+    if(sc && !sc._revBound){ sc._revBound=true; sc.addEventListener('scroll',()=>{ document.querySelectorAll('[data-reveal]').forEach(el=>{ if(!el._shown && inView(el)) show(el); }); },{passive:true}); }
+    setTimeout(()=>{ els.forEach(show); },2200);
+    setTimeout(()=>{ document.querySelectorAll('[data-bar]').forEach(b=>{ if(G) G.from(b,{width:0,duration:1.3,ease:'power2.out'}); }); },400);
+  }
+
+  /* ---------- 3D tooth chart ---------- */
+  _initTeeth(){ try{ this._buildTeeth(); }catch(e){ console.warn('teeth',e); } }
+  _toothType(i,N){ const d=Math.abs(i-(N-1)/2); return d<1.2?'central':d<2.2?'lateral':d<3.2?'canine':d<5.2?'premolar':'molar'; }
+  _buildTeeth(){
+    const THREE=window.THREE; const canvas=document.getElementById('en-teeth'); if(!THREE||!canvas||this._teeth) return;
+    const W=canvas.clientWidth||560, H=canvas.clientHeight||360;
+    const r=new THREE.WebGLRenderer({canvas,antialias:true,alpha:true,preserveDrawingBuffer:true});
+    r.setPixelRatio(Math.min(2,devicePixelRatio)); r.setSize(W,H,false); r.outputEncoding=THREE.sRGBEncoding;
+    const scene=new THREE.Scene();
+    const cam=new THREE.PerspectiveCamera(34,W/H,0.1,100); cam.position.set(0,0.1,9.6);
+    // environment for glossy enamel
+    try{
+      const cv=document.createElement('canvas'); cv.width=8; cv.height=128; const cx=cv.getContext('2d');
+      const g=cx.createLinearGradient(0,0,0,128); g.addColorStop(0,'#eaffff'); g.addColorStop(.45,'#9fc7d4'); g.addColorStop(1,'#16323d'); cx.fillStyle=g; cx.fillRect(0,0,8,128);
+      const tex=new THREE.CanvasTexture(cv); tex.mapping=THREE.EquirectangularReflectionMapping;
+      const pm=new THREE.PMREMGenerator(r); scene.environment=pm.fromEquirectangular(tex).texture; tex.dispose();
+    }catch(e){}
+    scene.add(new THREE.AmbientLight(0xcfeeff,0.32));
+    const key=new THREE.DirectionalLight(0xffffff,0.78); key.position.set(4,8,7); scene.add(key);
+    const rim=new THREE.DirectionalLight(0x8fe6ff,0.5); rim.position.set(-6,-3,-4); scene.add(rim);
+    const fill=new THREE.PointLight(0xbfe9ff,0.28,40); fill.position.set(0,2,8); scene.add(fill);
+    const under=new THREE.DirectionalLight(0x2a4a55,0.35); under.position.set(0,-6,2); scene.add(under);
+    const group=new THREE.Group(); group.rotation.x=0.1; scene.add(group);
+
+    // rounded-crown tooth builder (extruded rounded slabs)
+    const roundRect=(w,h,r)=>{ const s=new THREE.Shape(); const x=-w/2,y=-h/2; s.moveTo(x+r,y); s.lineTo(x+w-r,y); s.quadraticCurveTo(x+w,y,x+w,y+r); s.lineTo(x+w,y+h-r); s.quadraticCurveTo(x+w,y+h,x+w-r,y+h); s.lineTo(x+r,y+h); s.quadraticCurveTo(x,y+h,x,y+h-r); s.lineTo(x,y+r); s.quadraticCurveTo(x,y,x+r,y); return s; };
+    const crownGeo=(w,h,d,r)=>{ const g=new THREE.ExtrudeGeometry(roundRect(w,h-r*0.4,r),{depth:d,bevelEnabled:true,bevelThickness:r*0.9,bevelSize:r*0.85,bevelSegments:5,curveSegments:12,steps:1}); g.center(); g.computeVertexNormals(); return g; };
+    const DIM={central:[0.46,0.78,0.42,0.15],lateral:[0.39,0.68,0.4,0.14],canine:[0.41,0.86,0.48,0.18],premolar:[0.5,0.62,0.56,0.17],molar:[0.68,0.58,0.7,0.19]};
+    const geoByType={}; Object.keys(DIM).forEach(k=>{ const d=DIM[k]; geoByType[k]=crownGeo(d[0],d[1],d[2],d[3]); });
+    const cuspGeo=new THREE.SphereGeometry(0.13,16,12);
+    const flagged=new Set(this.state.flaggedMap[this.state.selectedId]||[]);
+    const meshes=[]; const N=14; const GAP=0.16;
+    const enamel=(bad)=> new THREE.MeshPhysicalMaterial({color:bad?0xff3838:0xe9e7db,roughness:0.28,clearcoat:1,clearcoatRoughness:0.16,metalness:0,reflectivity:0.5,envMapIntensity:0.65,emissive:bad?0x5a0a0a:0x000000});
+    const buildArch=(upper)=>{
+      for(let i=0;i<N;i++){
+        const t=i/(N-1); const a=(t-0.5)*2.42;
+        const x=Math.sin(a)*2.92; const z=Math.cos(a)*2.28;
+        const type=this._toothType(i,N); const d=DIM[type]; const h=d[1];
+        const id=(upper?'U':'L')+(i+1); const bad=flagged.has(id);
+        const cy=upper ? (GAP + h/2) : -(GAP + h/2);
+        const pivot=new THREE.Group(); pivot.position.set(x, cy, z); pivot.rotation.y=-a;
+        const mat=enamel(bad);
+        const mesh=new THREE.Mesh(geoByType[type],mat); mesh.rotation.x=upper?Math.PI:0;
+        pivot.add(mesh);
+        if(type==='molar'||type==='premolar'){
+          const n=type==='molar'?4:2;
+          for(let c=0;c<n;c++){ const cu=new THREE.Mesh(cuspGeo,mat); const col=(c%2)?1:-1; const row=(c<2||n===2)?1:-1; cu.position.set(col*d[0]*0.24, h/2*0.78, (n===2?0:row)*d[2]*0.24); cu.scale.set(1,0.6,1); mesh.add(cu); }
+        }
+        mesh.userData={id,bad,type,pivot,baseScale:[1,1,1]};
+        meshes.push(mesh); group.add(pivot);
+      }
+    };
+    buildArch(true); buildArch(false);
+    // gums
+    const gum=new THREE.MeshStandardMaterial({color:0xc8707c,roughness:0.55,metalness:0,transparent:true,opacity:0.96});
+    [{y:0.95,up:1},{y:-0.95,up:0}].forEach(o=>{ const tg=new THREE.Mesh(new THREE.TorusGeometry(2.92,0.32,16,52,Math.PI*1.5),gum); tg.position.set(0,o.y,0.35); tg.rotation.x=Math.PI/2; tg.rotation.z=o.up?-Math.PI*0.25:Math.PI*1.25; group.add(tg); });
+
+    this._teeth={r,scene,cam,group,meshes,canvas}; this._dragged=false;
+
+    const ray=new THREE.Raycaster(); const ndc=new THREE.Vector2(); const tip=document.getElementById('en-tip');
+    let drag=false,moved=0,px=0,py=0,vel=0,hover=null;
+    const G=window.gsap;
+    const setHover=(m)=>{ if(hover===m) return; if(hover){ const b=hover.userData.baseScale; if(G)G.to(hover.scale,{x:b[0],y:b[1],z:b[2],duration:.25}); else hover.scale.set(b[0],b[1],b[2]); } hover=m; if(m){ const b=m.userData.baseScale; if(G)G.to(m.scale,{x:b[0]*1.14,y:b[1]*1.14,z:b[2]*1.14,duration:.25}); else m.scale.set(b[0]*1.14,b[1]*1.14,b[2]*1.14); } canvas.style.cursor=m?'pointer':'grab'; };
+    const pick=(cx,cy)=>{ const rect=canvas.getBoundingClientRect(); ndc.x=((cx-rect.left)/rect.width)*2-1; ndc.y=-((cy-rect.top)/rect.height)*2+1; ray.setFromCamera(ndc,cam); return ray.intersectObjects(meshes)[0]; };
+    const down=(e)=>{ drag=true; moved=0; const c=e.touches?e.touches[0]:e; px=c.clientX; py=c.clientY; canvas.style.cursor='grabbing'; };
+    const move=(e)=>{ const c=e.touches?e.touches[0]:e;
+      if(drag){ const dx=c.clientX-px,dy=c.clientY-py; moved+=Math.abs(dx)+Math.abs(dy); if(moved>6)this._dragged=true; group.rotation.y+=dx*0.008; group.rotation.x=Math.max(-0.5,Math.min(0.6,group.rotation.x+dy*0.005)); vel=dx*0.008; px=c.clientX; py=c.clientY; }
+      else { const hit=pick(c.clientX,c.clientY); setHover(hit?hit.object:null); if(hit&&tip){ const rect=canvas.getBoundingClientRect(); tip.style.left=(c.clientX-rect.left)+'px'; tip.style.top=(c.clientY-rect.top)+'px'; tip.style.opacity='1'; const ud=hit.object.userData; tip.textContent='#'+ud.id.slice(1)+(ud.id[0]==='U'?' upper · ':' lower · ')+ud.type+(ud.bad?' · flagged':''); } else if(tip){ tip.style.opacity='0'; } }
+    };
+    const up=(e)=>{ canvas.style.cursor=hover?'pointer':'grab'; if(drag&&moved<6){ const c=e.changedTouches?e.changedTouches[0]:e; const hit=pick(c.clientX,c.clientY); if(hit) this._toggleTooth(hit.object.userData.id); } drag=false; };
+    const leave=()=>{ if(tip)tip.style.opacity='0'; setHover(null); };
+    canvas.addEventListener('mousedown',down); window.addEventListener('mousemove',move); window.addEventListener('mouseup',up); canvas.addEventListener('mouseleave',leave);
+    canvas.addEventListener('touchstart',down,{passive:true}); window.addEventListener('touchmove',move,{passive:true}); window.addEventListener('touchend',up);
+    this._teethHandlers={move,up};
+
+    const loop=()=>{ if(!this._teeth) return; this._teethRaf=requestAnimationFrame(loop); if(!drag){ if(this._dragged){ group.rotation.y+=vel; vel*=0.93; } else { group.rotation.y=Math.sin(performance.now()*0.00033)*0.3; group.rotation.x=0.1+Math.sin(performance.now()*0.0005)*0.04; } } r.render(scene,cam); };
+    loop();
+  }
+  _setMeshBad(id,bad){
+    if(!this._teeth) return; const m=this._teeth.meshes.find(x=>x.userData.id===id); if(!m) return; m.userData.bad=bad;
+    const G=window.gsap; const tc=bad?{r:1,g:0.3,b:0.3}:{r:0.953,g:0.957,b:0.933}; const ec=bad?{r:0.29,g:0.04,b:0.04}:{r:0,g:0,b:0};
+    if(G){ G.to(m.material.color,{...tc,duration:.4}); G.to(m.material.emissive,{...ec,duration:.4}); const b=m.userData.baseScale; G.fromTo(m.scale,{x:b[0]*1.22,y:b[1]*1.22,z:b[2]*1.22},{x:b[0],y:b[1],z:b[2],duration:.55,ease:'elastic.out(1,0.5)'}); }
+    else { m.material.color.setRGB(tc.r,tc.g,tc.b); m.material.emissive.setRGB(ec.r,ec.g,ec.b); }
+  }
+  _toggleTooth(id){ const sel=this.state.selectedId; if(!sel) return; const cur=(this.state.flaggedMap[sel]||[]).slice(); const i=cur.indexOf(id); let bad; if(i>=0){ cur.splice(i,1); bad=false; } else { cur.push(id); bad=true; } this._setMeshBad(id,bad); this.setState(s=>({flaggedMap:{...s.flaggedMap,[sel]:cur}})); }
+  _disposeTeeth(){ if(this._teethRaf) cancelAnimationFrame(this._teethRaf); if(this._teethHandlers){ window.removeEventListener('mousemove',this._teethHandlers.move); window.removeEventListener('mouseup',this._teethHandlers.up); } if(this._teeth){ try{this._teeth.r.dispose();}catch(e){} } this._teeth=null; }
+
+  /* ---------- navigation / actions ---------- */
+  login(){ this.setState({screen:'app'}); setTimeout(()=>{ this._applyPalette(this.state.palette); this._revealScan(); },60); }
+  logout(){ this._disposeTeeth(); this.setState({screen:'login',selectedId:null,addOpen:false}); }
+  setRole(role){ this.setState({role}); }
+  openPatient(id){ this._disposeTeeth(); this.setState({selectedId:id}); setTimeout(()=>this._initTeeth(),150); }
+  closePatient(){ this._disposeTeeth(); this.setState({selectedId:null}); }
+  resetTeeth(){ const sel=this.state.selectedId; if(!sel) return; (this.state.flaggedMap[sel]||[]).forEach(id=>this._setMeshBad(id,false)); this.setState(s=>({flaggedMap:{...s.flaggedMap,[sel]:[]}})); }
+  openAdd(){ this.setState({addOpen:true}); }
+  closeAdd(){ this.setState({addOpen:false}); }
+  submitAdd(){
+    const g=(id)=>{ const e=document.getElementById(id); return e?e.value.trim():''; };
+    const name=g('np-name')||'New Patient'; const age=g('np-age')||'—'; const fac=g('np-fac')||'Dr. Lin'; const status=g('np-status')||'New'; const proc=g('np-proc')||'Initial exam & charting'; const next=g('np-next')||'Unscheduled';
+    const id='p'+Date.now(); const tone=this._tones[Math.floor(Math.random()*this._tones.length)];
+    const patient={id,name,age,faculty:fac,status,procedure:proc,next:next==='Unscheduled'?'Unscheduled':next,badTeeth:[],tone};
+    this.setState(s=>({patients:[patient,...s.patients], flaggedMap:{...s.flaggedMap,[id]:[]}, addOpen:false}));
+    setTimeout(()=>this._revealScan(),80);
+  }
+  approve(id){ this.setState(s=>({approvals:s.approvals.filter(a=>a.id!==id)})); }
+  _scrollTo(id){ const sc=document.getElementById('en-scroller'); const el=document.getElementById(id); if(sc&&el) sc.scrollTo({top:el.offsetTop-12,behavior:'smooth'}); }
+
+  renderVals(){
+    const STBG={Active:'rgba(123,224,214,.16)',Recall:'rgba(168,199,247,.16)',New:'rgba(191,233,168,.16)'};
+    const STFG={Active:'#7be0d6',Recall:'#a8c7f7',New:'#bfe9a8'};
+    const STUBG={'On track':'rgba(123,224,214,.16)','Ahead':'rgba(191,233,168,.16)','Behind':'rgba(247,180,120,.16)'};
+    const STUFG={'On track':'#7be0d6','Ahead':'#bfe9a8','Behind':'#f7c089'};
+    const role=this.state.role; const isAdmin=this.state.screen==='app'&&role==='admin'; const isStudent=this.state.screen==='app'&&role==='student';
+    const pal=this.palettes; const cur=this.state.palette;
+    const palettes=pal.map((p,i)=>({ name:p.name, swatch:`linear-gradient(140deg,${p.c2},${p.c3})`, ring: i===cur? `0 0 0 2px #04212a, 0 0 0 4px ${p.c1}` : '0 1px 4px rgba(0,0,0,.3)', pick:()=>this.setPalette(i) }));
+
+    const patients=this.state.patients.map(p=>({ ...p, meta:`${p.age} yrs · ${p.faculty}`, statusBg:STBG[p.status]||STBG.Active, statusFg:STFG[p.status]||STFG.Active, badCount:(this.state.flaggedMap[p.id]||[]).length, next:'Next · '+p.next, open:()=>this.openPatient(p.id) }));
+
+    const sel=this.state.selectedId; const c=this.state.patients.find(p=>p.id===sel);
+    const flaggedIds=(sel?this.state.flaggedMap[sel]:[])||[];
+    const TYPE=(id)=>{ const n=parseInt(id.slice(1)); const N=14; const d=Math.abs((n-1)-(N-1)/2); return d<1.2?'central incisor':d<2.2?'lateral incisor':d<3.2?'canine':d<5.2?'premolar':'molar'; };
+    const flagged=flaggedIds.slice().sort().map(id=>({ tooth:'#'+id.slice(1)+(id[0]==='U'?' ↑':' ↓'), label:(id[0]==='U'?'Maxillary ':'Mandibular ')+TYPE(id), note:'caries', remove:()=>this._toggleTooth(id) }));
+
+    const students=this.data.students.map((s,i)=>({ ...s, tone:this._tones[i%this._tones.length], width:s.pct+'%', txt:s.pct+'%', statusBg:STUBG[s.status], statusFg:STUFG[s.status] }));
+    const approvals=this.state.approvals.map(a=>({ ...a, approve:()=>this.approve(a.id), deny:()=>this.approve(a.id) }));
+
+    return {
+      isLogin:this.state.screen==='login', isApp:this.state.screen==='app', isStudent, isAdmin,
+      roleStudentBg: role==='student'?'linear-gradient(140deg,var(--c2),var(--c3))':'transparent',
+      roleAdminBg: role==='admin'?'linear-gradient(140deg,var(--c2),var(--c3))':'transparent',
+      setStudent:()=>this.setRole('student'), setAdmin:()=>this.setRole('admin'),
+      login:()=>this.login(), logout:()=>this.logout(),
+      palettes,
+      roleLabel: isAdmin?'Faculty Console':'Clinical Studio',
+      userName: isAdmin?'Dr. Lin':'Sana Reyes', userRole: isAdmin?'Faculty supervisor':'DDS Candidate · Y3',
+      nav: isAdmin? [
+        {num:'01',label:'Overview',go:()=>this._scrollTo('sec-overview')},
+        {num:'02',label:'Approvals',go:()=>this._scrollTo('sec-approvals')},
+        {num:'03',label:'Students',go:()=>this._scrollTo('sec-students')},
+        {num:'04',label:'Patients',go:()=>this._scrollTo('sec-patients')},
+      ] : [
+        {num:'01',label:'Overview',go:()=>this._scrollTo('sec-overview')},
+        {num:'02',label:'Patients',go:()=>this._scrollTo('sec-patients')},
+        {num:'03',label:'Prospects',go:()=>this._scrollTo('sec-prospects')},
+        {num:'04',label:'Schedule',go:()=>this._scrollTo('sec-schedule')},
+      ],
+      stats:[
+        {value:String(this.state.patients.length).padStart(2,'0'),label:'Active patients',delta:'+3 this month',tone:'var(--c2)'},
+        {value:'09',label:'Prospective leads',delta:'2 awaiting outreach',tone:'#a8c7f7'},
+        {value:'04',label:'Cases on chair',delta:'Clinic B today',tone:'#bfe9a8'},
+        {value:'68%',label:'Requirements met',delta:'on track for Y3',tone:'#f7c6a8'},
+      ],
+      adminStats:[
+        {value:'06',label:'Student clinicians',delta:'Clinic B rotation',tone:'var(--c2)'},
+        {value:'142',label:'Patients in system',delta:'+12 this month',tone:'#a8c7f7'},
+        {value:String(this.state.approvals.length).padStart(2,'0'),label:'Pending approvals',delta:'needs review',tone:'#f7c089'},
+        {value:'82%',label:'Chair utilization',delta:'this week',tone:'#bfe9a8'},
+      ],
+      pendingCount:this.state.approvals.length,
+      schedule:[
+        {time:'09:00',patient:'Theo Marsh',proc:'Scaling & polish',room:'Bay 1',faculty:'Dr. Okada',kind:'Recall',kindBg:'rgba(168,199,247,.18)',kindFg:'#a8c7f7'},
+        {time:'10:30',patient:'Diego Ramos',proc:'Initial exam',room:'Bay 4',faculty:'Dr. Bell',kind:'New',kindBg:'rgba(191,233,168,.18)',kindFg:'#bfe9a8'},
+        {time:'14:30',patient:'Amara Okafor',proc:'Composite #14',room:'Bay 3',faculty:'Dr. Lin',kind:'Restorative',kindBg:'color-mix(in srgb,var(--c1) 18%,transparent)',kindFg:'var(--c1)'},
+        {time:'15:15',patient:'Hana Yusuf',proc:'Crown prep #19',room:'Bay 3',faculty:'Dr. Okada',kind:'Restorative',kindBg:'color-mix(in srgb,var(--c1) 18%,transparent)',kindFg:'var(--c1)'},
+      ],
+      patients,
+      prospects:[
+        {name:'Marcus Webb',interest:'Whitening consult',source:'Campus screening',stage:'New lead',stageFg:'#bfe9a8'},
+        {name:'Ife Adeyemi',interest:'Wisdom tooth eval',source:'Faculty referral',stage:'Contacted',stageFg:'#a8c7f7'},
+        {name:'Rosa Delgado',interest:'Full charting',source:'Community clinic',stage:'New lead',stageFg:'#bfe9a8'},
+        {name:'Kenji Sato',interest:'Ortho assessment',source:'Walk-in',stage:'Booking',stageFg:'var(--c1)'},
+      ],
+      week:[
+        {day:'Mon',time:'11:00',patient:'Priya Nair',proc:'Ortho review',room:'Bay 2'},
+        {day:'Wed',time:'09:30',patient:'Leo Brandt',proc:'Sealants',room:'Bay 1'},
+        {day:'Thu',time:'13:00',patient:'Theo Marsh',proc:'Root planing',room:'Bay 4'},
+        {day:'Fri',time:'10:00',patient:'Diego Ramos',proc:'Follow-up exam',room:'Bay 3'},
+        {day:'Fri',time:'15:30',patient:'Marcus Webb',proc:'Whitening consult',room:'Bay 2'},
+      ],
+      reqs:[
+        {label:'Restorative',txt:'14 / 20',width:'70%'},
+        {label:'Periodontics',txt:'9 / 15',width:'60%'},
+        {label:'Endodontics',txt:'4 / 10',width:'40%'},
+        {label:'Prosthodontics',txt:'6 / 8',width:'75%'},
+      ],
+      students, approvals, hasApprovals:approvals.length>0, noApprovals:approvals.length===0,
+      isOpen:!!sel,
+      current: c?{name:c.name,meta:`${c.age} yrs`,faculty:c.faculty,nextShort:(c.next.split('·')[1]||c.next).trim()}:{name:'',meta:'',faculty:'',nextShort:''},
+      flaggedCount:String(flaggedIds.length).padStart(2,'0'),
+      flagged, hasFlags:flagged.length>0, noFlags:flagged.length===0,
+      closePatient:()=>this.closePatient(), resetTeeth:()=>this.resetTeeth(),
+      addOpen:this.state.addOpen, openAdd:()=>this.openAdd(), closeAdd:()=>this.closeAdd(), submitAdd:()=>this.submitAdd(),
+    };
+  }
+}
+</script>
+</body>
+</html>

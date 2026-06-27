@@ -300,7 +300,7 @@ function VisitsTab({ patientId, showToast }) {
                 </button>
               </div>
               {editNote?.visitId===v.id && (
-                <SOAPEditor soap={editNote.soap} onChange={soap=>setEditNote(p=>({...p,soap}))} onSave={()=>saveNote(v.id,editNote.soap)} onCancel={()=>setEditNote(null)} />
+                <SOAPEditor visitId={v.id} soap={editNote.soap} onChange={soap=>setEditNote(p=>({...p,soap}))} onSave={()=>saveNote(v.id,editNote.soap)} onCancel={()=>setEditNote(null)} showToast={showToast} />
               )}
               {v.note && editNote?.visitId!==v.id && (
                 <div style={{ padding:'12px 18px',fontSize:'12.5px' }}>
@@ -314,6 +314,9 @@ function VisitsTab({ patientId, showToast }) {
                   </div>
                 </div>
               )}
+              {editNote?.visitId!==v.id && (
+                <SelfEval visit={v} showToast={showToast} onSaved={uv=>setVisits(prev=>prev.map(x=>x.id===v.id?{...x,self_eval_rating:uv.self_eval_rating,self_eval_note:uv.self_eval_note}:x))} />
+              )}
             </div>
           ))}
         </div>
@@ -322,9 +325,65 @@ function VisitsTab({ patientId, showToast }) {
   )
 }
 
-function SOAPEditor({ soap, onChange, onSave, onCancel }) {
+function SelfEval({ visit, onSaved, showToast }) {
+  const [rating, setRating] = useState(visit.self_eval_rating || 0)
+  const [note, setNote] = useState(visit.self_eval_note || '')
+  const [open, setOpen] = useState(false)
+
+  const save = async () => {
+    try {
+      const v = await api.visits.selfEval(visit.id, { self_eval_rating: rating || null, self_eval_note: note || null })
+      onSaved?.(v); setOpen(false); showToast?.('Self-evaluation saved')
+    } catch { showToast?.('Failed to save self-evaluation') }
+  }
+
+  return (
+    <div style={{ padding:'10px 18px',borderTop:'1px solid rgba(255,255,255,.06)' }}>
+      <div style={{ display:'flex',alignItems:'center',gap:'10px' }}>
+        <span style={{ fontSize:'10.5px',letterSpacing:'.12em',textTransform:'uppercase',color:'rgba(255,255,255,.4)' }}>Self-eval</span>
+        <div style={{ display:'flex',gap:'2px' }}>
+          {[1,2,3,4,5].map(n => (
+            <button key={n} onClick={()=>{ setRating(n); setOpen(true) }} style={{ background:'transparent',border:'none',cursor:'pointer',fontSize:'15px',color:n<=rating?'#f7d9a8':'rgba(255,255,255,.2)',padding:0 }}>★</button>
+          ))}
+        </div>
+        {visit.self_eval_note && !open && <span style={{ fontSize:'11.5px',color:'rgba(234,246,246,.55)',flex:1,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap' }}>“{visit.self_eval_note}”</span>}
+        <button onClick={()=>setOpen(o=>!o)} style={{ marginLeft:'auto',background:'transparent',border:'none',color:'var(--c1)',cursor:'pointer',fontSize:'11.5px',fontFamily:'inherit' }}>{open?'close':'reflect'}</button>
+      </div>
+      {open && (
+        <div style={{ marginTop:'8px',display:'flex',gap:'8px' }}>
+          <input value={note} onChange={e=>setNote(e.target.value)} placeholder="What would I do differently next time?" style={{ ...iS,margin:0,flex:1 }} onKeyDown={e=>e.key==='Enter'&&save()} />
+          <button onClick={save} style={{ padding:'8px 14px',borderRadius:'10px',border:'none',background:'linear-gradient(140deg,var(--c2),var(--c3))',color:'#04212a',fontWeight:600,cursor:'pointer',fontSize:'12.5px',fontFamily:'inherit' }}>Save</button>
+        </div>
+      )}
+    </div>
+  )
+}
+
+function SOAPEditor({ visitId, soap, onChange, onSave, onCancel, showToast }) {
+  const [drafting, setDrafting] = useState(false)
+
+  const aiDraft = async () => {
+    setDrafting(true)
+    try {
+      const draft = await api.ai.soap(visitId, { subjective: soap.subjective || '' })
+      onChange({ ...soap,
+        objective: draft.objective || soap.objective,
+        assessment: draft.assessment || soap.assessment,
+        plan: draft.plan || soap.plan,
+      })
+      showToast?.('AI draft inserted — review before saving')
+    } catch (e) {
+      showToast?.(String(e).includes('503') ? 'AI not configured (set ANTHROPIC_API_KEY)' : 'AI draft failed')
+    } finally { setDrafting(false) }
+  }
+
   return (
     <div style={{ padding:'14px 18px',display:'flex',flexDirection:'column',gap:'10px' }}>
+      <div style={{ display:'flex',justifyContent:'flex-end' }}>
+        <button onClick={aiDraft} disabled={drafting} title="Draft O/A/P from charted findings" style={{ display:'flex',alignItems:'center',gap:'6px',padding:'6px 13px',borderRadius:'20px',border:'1px solid color-mix(in srgb,var(--c1) 35%,transparent)',background:'color-mix(in srgb,var(--c1) 10%,transparent)',color:'var(--c1)',cursor:drafting?'wait':'pointer',fontSize:'12px',fontFamily:'inherit',opacity:drafting?.6:1 }}>
+          <span>✨</span> {drafting ? 'Drafting…' : 'AI draft O/A/P'}
+        </button>
+      </div>
       {[['subjective','S — Subjective','What the patient reports'],['objective','O — Objective','Clinical findings'],['assessment','A — Assessment','Diagnosis / impression'],['plan','P — Plan','Treatment plan, next steps']].map(([k,label,ph])=>(
         <div key={k}>
           <div style={{ fontSize:'10px',letterSpacing:'.13em',textTransform:'uppercase',color:'var(--c1)',marginBottom:'5px' }}>{label}</div>
@@ -335,6 +394,7 @@ function SOAPEditor({ soap, onChange, onSave, onCancel }) {
         <button onClick={onSave} style={{ padding:'8px 18px',borderRadius:'10px',border:'none',background:'linear-gradient(140deg,var(--c2),var(--c3))',color:'#04212a',fontWeight:600,cursor:'pointer',fontSize:'13px',fontFamily:'inherit' }}>Save SOAP note</button>
         <button onClick={onCancel} style={{ padding:'8px 14px',borderRadius:'10px',border:'1px solid rgba(255,255,255,.15)',background:'transparent',color:'rgba(234,246,246,.7)',cursor:'pointer',fontSize:'13px',fontFamily:'inherit' }}>Cancel</button>
       </div>
+      <div style={{ fontSize:'10.5px',color:'rgba(255,255,255,.35)' }}>AI drafts are a study aid — verify every line before saving.</div>
     </div>
   )
 }
@@ -347,6 +407,9 @@ function TreatmentPlanTab({ patientId, showToast }) {
   const [newPlanTitle, setNewPlanTitle] = useState('')
   const [addStepPlanId, setAddStepPlanId] = useState(null)
   const [newStep, setNewStep] = useState('')
+  const [newCode, setNewCode] = useState('')
+  const [newTooth, setNewTooth] = useState('')
+  const [newFee, setNewFee] = useState('')
 
   useEffect(() => { api.plans.list(patientId).then(p=>{setPlans(p);setLoading(false)}).catch(()=>setLoading(false)) }, [patientId])
 
@@ -361,8 +424,14 @@ function TreatmentPlanTab({ patientId, showToast }) {
   const addStep = async (planId) => {
     if (!newStep.trim()) return
     try {
-      const s = await api.plans.addStep(planId, { description:newStep, order:100 })
-      setPlans(prev=>prev.map(p=>p.id===planId?{...p,steps:[...p.steps,s]}:p)); setNewStep(''); setAddStepPlanId(null); showToast('Step added')
+      const s = await api.plans.addStep(planId, {
+        description:newStep, order:100,
+        cdt_code: newCode.trim() || null,
+        tooth: newTooth.trim() || null,
+        fee: newFee ? Number(newFee) : null,
+      })
+      setPlans(prev=>prev.map(p=>p.id===planId?{...p,steps:[...p.steps,s],estimate:(p.estimate||0)+(s.fee||0)}:p))
+      setNewStep(''); setNewCode(''); setNewTooth(''); setNewFee(''); setAddStepPlanId(null); showToast('Step added')
     } catch { showToast('Failed to add step') }
   }
 
@@ -396,9 +465,12 @@ function TreatmentPlanTab({ patientId, showToast }) {
             const pct = total>0?Math.round(done/total*100):0
             return (
               <div key={plan.id} style={{ padding:'18px',borderRadius:'18px',background:'rgba(255,255,255,.05)',border:'1px solid rgba(255,255,255,.1)' }}>
-                <div style={{ display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:'12px' }}>
+                <div style={{ display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:'12px',gap:'8px' }}>
                   <div style={{ fontFamily:"'Instrument Serif',serif",fontSize:'20px' }}>{plan.title}</div>
-                  <span style={{ fontSize:'11px',padding:'3px 9px',borderRadius:'20px',background:'rgba(123,224,214,.1)',color:'var(--c1)' }}>{done}/{total}</span>
+                  <div style={{ display:'flex',gap:'6px',alignItems:'center',flexShrink:0 }}>
+                    {plan.estimate > 0 && <span style={{ fontSize:'11px',padding:'3px 9px',borderRadius:'20px',background:'rgba(247,217,168,.12)',color:'#f7d9a8' }}>est. ${plan.estimate.toLocaleString()}</span>}
+                    <span style={{ fontSize:'11px',padding:'3px 9px',borderRadius:'20px',background:'rgba(123,224,214,.1)',color:'var(--c1)' }}>{done}/{total}</span>
+                  </div>
                 </div>
                 {total>0 && (
                   <div style={{ marginBottom:'14px' }}>
@@ -414,14 +486,22 @@ function TreatmentPlanTab({ patientId, showToast }) {
                         {step.status==='completed'&&'✓'}
                       </div>
                       <span style={{ fontSize:'13.5px',textDecoration:step.status==='completed'?'line-through':'none',color:step.status==='completed'?'rgba(234,246,246,.45)':'#eaf6f6',flex:1 }}>{step.description}</span>
+                      {step.tooth && <span style={{ fontSize:'10.5px',color:'rgba(255,255,255,.5)',padding:'2px 7px',borderRadius:'20px',background:'rgba(255,255,255,.06)',flexShrink:0 }}>#{step.tooth}</span>}
+                      {step.cdt_code && <span style={{ fontSize:'10.5px',color:'var(--c1)',padding:'2px 7px',borderRadius:'20px',background:'rgba(123,224,214,.12)',flexShrink:0,fontVariantNumeric:'tabular-nums' }}>{step.cdt_code}</span>}
+                      {step.fee != null && <span style={{ fontSize:'11.5px',color:'#f7d9a8',flexShrink:0,fontVariantNumeric:'tabular-nums' }}>${Number(step.fee).toLocaleString()}</span>}
                     </div>
                   ))}
                 </div>
                 {addStepPlanId===plan.id ? (
-                  <div style={{ marginTop:'10px',display:'flex',gap:'8px' }}>
-                    <input value={newStep} onChange={e=>setNewStep(e.target.value)} placeholder="Describe the step…" style={{ ...iS,flex:1,margin:0 }} onKeyDown={e=>e.key==='Enter'&&addStep(plan.id)} autoFocus />
-                    <button onClick={()=>addStep(plan.id)} style={{ padding:'8px 14px',borderRadius:'10px',border:'none',background:'linear-gradient(140deg,var(--c2),var(--c3))',color:'#04212a',fontWeight:600,cursor:'pointer',fontSize:'13px',fontFamily:'inherit' }}>Add</button>
-                    <button onClick={()=>setAddStepPlanId(null)} style={{ padding:'8px',borderRadius:'10px',border:'1px solid rgba(255,255,255,.15)',background:'transparent',color:'rgba(234,246,246,.7)',cursor:'pointer',fontSize:'13px' }}>✕</button>
+                  <div style={{ marginTop:'10px',padding:'12px',borderRadius:'12px',background:'rgba(0,0,0,.18)',border:'1px solid rgba(255,255,255,.08)' }}>
+                    <input value={newStep} onChange={e=>setNewStep(e.target.value)} placeholder="Describe the step…" style={{ ...iS,margin:'0 0 8px' }} onKeyDown={e=>e.key==='Enter'&&addStep(plan.id)} autoFocus />
+                    <div style={{ display:'flex',gap:'8px',alignItems:'center' }}>
+                      <input value={newCode} onChange={e=>setNewCode(e.target.value)} placeholder="CDT (D2740)" style={{ ...iS,margin:0,width:'110px' }} />
+                      <input value={newTooth} onChange={e=>setNewTooth(e.target.value)} placeholder="Tooth" style={{ ...iS,margin:0,width:'80px' }} />
+                      <input value={newFee} onChange={e=>setNewFee(e.target.value.replace(/[^0-9.]/g,''))} inputMode="decimal" placeholder="Fee $" style={{ ...iS,margin:0,width:'90px' }} />
+                      <button onClick={()=>addStep(plan.id)} style={{ padding:'8px 14px',borderRadius:'10px',border:'none',background:'linear-gradient(140deg,var(--c2),var(--c3))',color:'#04212a',fontWeight:600,cursor:'pointer',fontSize:'13px',fontFamily:'inherit' }}>Add</button>
+                      <button onClick={()=>setAddStepPlanId(null)} style={{ padding:'8px',borderRadius:'10px',border:'1px solid rgba(255,255,255,.15)',background:'transparent',color:'rgba(234,246,246,.7)',cursor:'pointer',fontSize:'13px' }}>✕</button>
+                    </div>
                   </div>
                 ) : (
                   <button onClick={()=>setAddStepPlanId(plan.id)} style={{ marginTop:'10px',width:'100%',padding:'8px',borderRadius:'10px',border:'1px dashed rgba(255,255,255,.2)',background:'transparent',color:'rgba(234,246,246,.5)',cursor:'pointer',fontSize:'12.5px',fontFamily:'inherit' }}>+ Add step</button>
@@ -489,6 +569,13 @@ function AppointmentsTab({ patient, allAppts, onCreateAppointment, onUpdateAppoi
                     <div style={{ fontSize:'14px',fontWeight:500 }}>{a.procedure}</div>
                     <div style={{ fontSize:'12px',color:'rgba(255,255,255,.45)',marginTop:'2px' }}>{dt.toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit',hour12:true})} · {a.room} · {a.faculty}</div>
                   </div>
+                  <button onClick={async()=>{
+                    try {
+                      const r = await api.appointments.reminderText(a.id, 'sms')
+                      await navigator.clipboard.writeText(r.body)
+                      showToast('Reminder text copied to clipboard')
+                    } catch { showToast('Could not generate reminder') }
+                  }} style={{ padding:'5px 11px',borderRadius:'20px',border:'1px solid rgba(255,255,255,.18)',background:'transparent',color:'var(--c1)',cursor:'pointer',fontSize:'11.5px',fontFamily:'inherit' }}>Reminder ⧉</button>
                   <button onClick={()=>onCancelAppointment(a.id)} style={{ padding:'5px 11px',borderRadius:'20px',border:'1px solid rgba(255,100,100,.3)',background:'transparent',color:'rgba(255,150,150,.7)',cursor:'pointer',fontSize:'11.5px',fontFamily:'inherit' }}>Cancel</button>
                 </div>
               )
@@ -565,24 +652,283 @@ function IntakeTab({ patient, onUpdate }) {
 }
 
 // ── Main PatientDetail panel ─────────────────────────────────────────────────
-export default function PatientDetail({ patient, flaggedTeeth, onToggle, onClear, onUpdateTooth, onClose, onUpdate, onDelete, onCreateAppointment, onUpdateAppointment, onCancelAppointment, allAppts, showToast }) {
+// ── AI differential helper (Overview) ────────────────────────────────────────
+function DifferentialHelper({ patient, showToast }) {
+  const [open, setOpen] = useState(false)
+  const [loading, setLoading] = useState(false)
+  const [result, setResult] = useState('')
+
+  const run = async () => {
+    setOpen(true); setLoading(true); setResult('')
+    try {
+      const r = await api.ai.differential({ chief_complaint: patient.chief_complaint || '', context: patient.medical_conditions || '' })
+      setResult(r.differential || 'No suggestions returned.')
+    } catch (e) {
+      setResult(String(e).includes('503') ? 'AI not configured (set ANTHROPIC_API_KEY on the server).' : 'AI request failed.')
+    } finally { setLoading(false) }
+  }
+
+  if (!patient.chief_complaint) return null
+  return (
+    <div style={{ marginTop:'14px',padding:'14px 16px',borderRadius:'14px',background:'color-mix(in srgb,var(--c1) 7%,transparent)',border:'1px solid color-mix(in srgb,var(--c1) 22%,transparent)' }}>
+      <div style={{ display:'flex',alignItems:'center',justifyContent:'space-between',gap:'10px' }}>
+        <div style={{ fontSize:'12px',color:'var(--c1)' }}>✨ Differential helper (study aid)</div>
+        <button onClick={run} disabled={loading} style={{ padding:'5px 12px',borderRadius:'20px',border:'1px solid color-mix(in srgb,var(--c1) 35%,transparent)',background:'transparent',color:'var(--c1)',cursor:loading?'wait':'pointer',fontSize:'11.5px',fontFamily:'inherit' }}>{loading?'Thinking…':'Suggest from chief complaint'}</button>
+      </div>
+      {open && (
+        <div style={{ marginTop:'10px',fontSize:'12.5px',color:'rgba(234,246,246,.78)',whiteSpace:'pre-wrap',lineHeight:1.5 }}>
+          {loading ? <span style={{ color:'rgba(255,255,255,.4)' }}>Generating differential…</span> : result}
+        </div>
+      )}
+    </div>
+  )
+}
+
+// ── Perio charting tab ───────────────────────────────────────────────────────
+const PERIO_TEETH = [
+  ...Array.from({ length: 16 }, (_, i) => `U${i + 1}`),
+  ...Array.from({ length: 16 }, (_, i) => `L${i + 1}`),
+]
+const SITE_LABELS = ['MB', 'B', 'DB', 'ML', 'L', 'DL']
+
+function pocketColor(v) {
+  if (v == null || v === '') return 'rgba(255,255,255,.06)'
+  const n = Number(v)
+  if (n >= 6) return 'rgba(255,90,90,.28)'
+  if (n >= 4) return 'rgba(247,198,168,.28)'
+  return 'rgba(191,233,168,.18)'
+}
+
+function PerioTab({ patientId, showToast }) {
+  const [exams, setExams]   = useState(null)
+  const [activeId, setActiveId] = useState(null)
+  const [tooth, setTooth]   = useState('U1')
+  const [pockets, setPockets]   = useState(['', '', '', '', '', ''])
+  const [bleeding, setBleeding] = useState([false, false, false, false, false, false])
+  const [mobility, setMobility] = useState('')
+  const [furcation, setFurcation] = useState('')
+
+  const load = async () => {
+    try {
+      const data = await api.perio.list(patientId)
+      setExams(data)
+      if (data.length && !activeId) setActiveId(data[0].id)
+    } catch { setExams([]) }
+  }
+  useEffect(() => { load() }, [patientId])
+
+  const active = (exams || []).find(e => e.id === activeId)
+
+  const newExam = async () => {
+    try {
+      const e = await api.perio.createExam({ patient_id: patientId })
+      setExams(prev => [e, ...(prev || [])])
+      setActiveId(e.id)
+      showToast?.('Perio exam started')
+    } catch { showToast?.('Failed to start exam') }
+  }
+
+  const saveTooth = async () => {
+    if (!active) return
+    try {
+      const m = await api.perio.saveTooth(active.id, {
+        tooth_id: tooth,
+        pockets: pockets.map(p => Number(p) || 0),
+        bleeding: bleeding.map(b => b ? 1 : 0),
+        mobility: mobility === '' ? null : Number(mobility),
+        furcation: furcation === '' ? null : Number(furcation),
+      })
+      setExams(prev => prev.map(e => e.id === active.id
+        ? { ...e, measurements: [...e.measurements.filter(x => x.tooth_id !== tooth), m] }
+        : e))
+      showToast?.(`Tooth ${tooth} recorded`)
+    } catch { showToast?.('Failed to save tooth') }
+  }
+
+  const delExam = async (id) => {
+    try {
+      await api.perio.deleteExam(id)
+      setExams(prev => prev.filter(e => e.id !== id))
+      if (activeId === id) setActiveId(null)
+    } catch { showToast?.('Failed to delete exam') }
+  }
+
+  if (exams === null) return <div style={{ color:'rgba(234,246,246,.4)',fontSize:'13.5px',padding:'12px' }}>Loading perio…</div>
+
+  return (
+    <div>
+      <div style={{ display:'flex',gap:'8px',alignItems:'center',marginBottom:'16px',flexWrap:'wrap' }}>
+        <button onClick={newExam} style={{ padding:'8px 16px',borderRadius:'10px',border:'none',background:'linear-gradient(140deg,var(--c2),var(--c3))',color:'#04212a',fontWeight:600,cursor:'pointer',fontSize:'12.5px',fontFamily:'inherit' }}>+ New exam</button>
+        {exams.map(e => (
+          <button key={e.id} onClick={() => setActiveId(e.id)} style={{ padding:'7px 13px',borderRadius:'20px',border:'1px solid',borderColor:e.id===activeId?'var(--c1)':'rgba(255,255,255,.15)',background:e.id===activeId?'color-mix(in srgb,var(--c1) 14%,transparent)':'transparent',color:e.id===activeId?'var(--c1)':'rgba(234,246,246,.7)',cursor:'pointer',fontSize:'12px',fontFamily:'inherit' }}>{e.date_str}</button>
+        ))}
+      </div>
+
+      {!active ? (
+        <div style={{ padding:'32px',textAlign:'center',borderRadius:'16px',border:'1px dashed rgba(255,255,255,.12)',color:'rgba(234,246,246,.45)',fontSize:'13.5px' }}>
+          No perio exam selected. Start a new exam to record pocket depths.
+        </div>
+      ) : (
+        <>
+          {/* Entry form */}
+          <div style={{ padding:'16px',borderRadius:'14px',background:'rgba(255,255,255,.04)',border:'1px solid rgba(255,255,255,.1)',marginBottom:'16px' }}>
+            <div style={{ display:'flex',gap:'10px',alignItems:'center',marginBottom:'12px',flexWrap:'wrap' }}>
+              <select value={tooth} onChange={e => setTooth(e.target.value)} style={{ ...iS,width:'auto',padding:'8px 10px' }}>
+                {PERIO_TEETH.map(t => <option key={t} value={t}>{t}</option>)}
+              </select>
+              <span style={{ fontSize:'11px',color:'rgba(255,255,255,.45)' }}>Pocket depth (mm) per site</span>
+            </div>
+            <div style={{ display:'grid',gridTemplateColumns:'repeat(6,1fr)',gap:'8px',marginBottom:'12px' }}>
+              {SITE_LABELS.map((lbl, i) => (
+                <div key={lbl} style={{ textAlign:'center' }}>
+                  <div style={{ fontSize:'9.5px',letterSpacing:'.08em',color:'rgba(255,255,255,.4)',marginBottom:'4px' }}>{lbl}</div>
+                  <input value={pockets[i]} onChange={e => setPockets(p => p.map((v,j) => j===i ? e.target.value.replace(/[^0-9]/g,'').slice(0,2) : v))} inputMode="numeric" style={{ ...iS,textAlign:'center',padding:'8px 4px',background:pocketColor(pockets[i]) }} />
+                  <button onClick={() => setBleeding(b => b.map((v,j) => j===i ? !v : v))} title="Bleeding on probing" style={{ marginTop:'4px',width:'100%',height:'14px',borderRadius:'4px',cursor:'pointer',border:'none',background:bleeding[i]?'#ff6b6b':'rgba(255,255,255,.12)' }} />
+                </div>
+              ))}
+            </div>
+            <div style={{ display:'flex',gap:'10px',alignItems:'flex-end',flexWrap:'wrap' }}>
+              <div><div style={lS}>Mobility (0–3)</div><input value={mobility} onChange={e => setMobility(e.target.value.replace(/[^0-3]/g,'').slice(0,1))} style={{ ...iS,width:'90px' }} /></div>
+              <div><div style={lS}>Furcation (0–3)</div><input value={furcation} onChange={e => setFurcation(e.target.value.replace(/[^0-3]/g,'').slice(0,1))} style={{ ...iS,width:'90px' }} /></div>
+              <button onClick={saveTooth} style={{ padding:'10px 20px',borderRadius:'10px',border:'none',background:'linear-gradient(140deg,var(--c2),var(--c3))',color:'#04212a',fontWeight:600,cursor:'pointer',fontSize:'13px',fontFamily:'inherit' }}>Record tooth</button>
+              <button onClick={() => delExam(active.id)} style={{ marginLeft:'auto',padding:'9px 14px',borderRadius:'10px',border:'1px solid rgba(255,100,100,.25)',background:'transparent',color:'rgba(255,150,150,.7)',cursor:'pointer',fontSize:'12px',fontFamily:'inherit' }}>Delete exam</button>
+            </div>
+            <div style={{ fontSize:'10.5px',color:'rgba(255,255,255,.35)',marginTop:'8px' }}>Red bar under a site = bleeding on probing. Cells turn amber ≥4 mm, red ≥6 mm.</div>
+          </div>
+
+          {/* Recorded teeth */}
+          {active.measurements.length === 0 ? (
+            <div style={{ color:'rgba(234,246,246,.4)',fontSize:'13px',padding:'8px' }}>No teeth recorded in this exam yet.</div>
+          ) : (
+            <div style={{ display:'flex',flexDirection:'column',gap:'6px' }}>
+              {[...active.measurements].sort((a,b) => a.tooth_id.localeCompare(b.tooth_id)).map(m => (
+                <div key={m.id} style={{ display:'flex',alignItems:'center',gap:'10px',padding:'10px 12px',borderRadius:'10px',background:'rgba(255,255,255,.04)',border:'1px solid rgba(255,255,255,.08)' }}>
+                  <span style={{ fontFamily:"'Instrument Serif',serif",fontSize:'17px',width:'42px',flexShrink:0 }}>{m.tooth_id}</span>
+                  <div style={{ display:'flex',gap:'4px' }}>
+                    {(m.pockets || []).map((p,i) => (
+                      <span key={i} style={{ width:'24px',height:'24px',display:'flex',alignItems:'center',justifyContent:'center',borderRadius:'5px',fontSize:'12px',fontVariantNumeric:'tabular-nums',background:pocketColor(p),position:'relative' }}>
+                        {p}
+                        {m.bleeding && m.bleeding[i] === 1 && <span style={{ position:'absolute',bottom:'-2px',width:'14px',height:'3px',borderRadius:'2px',background:'#ff6b6b' }} />}
+                      </span>
+                    ))}
+                  </div>
+                  <span style={{ marginLeft:'auto',fontSize:'11.5px',color:'rgba(255,255,255,.5)' }}>
+                    {m.mobility != null && `M${m.mobility} `}{m.furcation != null && `F${m.furcation}`}
+                  </span>
+                </div>
+              ))}
+            </div>
+          )}
+        </>
+      )}
+    </div>
+  )
+}
+
+// ── Imaging tab ──────────────────────────────────────────────────────────────
+function ImagingTab({ patientId, showToast }) {
+  const [images, setImages] = useState(null)
+  const [kind, setKind]     = useState('radiograph')
+  const [caption, setCaption] = useState('')
+  const [uploading, setUploading] = useState(false)
+  const fileRef = useRef()
+
+  const load = async () => {
+    try { setImages(await api.images.list(patientId)) } catch { setImages([]) }
+  }
+  useEffect(() => { load() }, [patientId])
+
+  const onFile = async (e) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    const fd = new FormData()
+    fd.append('file', file)
+    fd.append('kind', kind)
+    if (caption.trim()) fd.append('caption', caption.trim())
+    setUploading(true)
+    try {
+      const img = await api.images.upload(patientId, fd)
+      setImages(prev => [img, ...(prev || [])])
+      setCaption('')
+      showToast?.('Image uploaded')
+    } catch { showToast?.('Upload failed') }
+    finally { setUploading(false); if (fileRef.current) fileRef.current.value = '' }
+  }
+
+  const del = async (id) => {
+    try { await api.images.delete(id); setImages(prev => prev.filter(i => i.id !== id)) }
+    catch { showToast?.('Failed to delete') }
+  }
+
+  if (images === null) return <div style={{ color:'rgba(234,246,246,.4)',fontSize:'13.5px',padding:'12px' }}>Loading imaging…</div>
+
+  return (
+    <div>
+      <div style={{ display:'flex',gap:'10px',alignItems:'flex-end',marginBottom:'18px',flexWrap:'wrap' }}>
+        <div><div style={lS}>Type</div>
+          <select value={kind} onChange={e => setKind(e.target.value)} style={{ ...iS,width:'auto',padding:'9px 10px' }}>
+            <option value="radiograph">Radiograph</option>
+            <option value="photo">Intraoral photo</option>
+            <option value="other">Other</option>
+          </select>
+        </div>
+        <div style={{ flex:1,minWidth:'160px' }}><div style={lS}>Caption (optional)</div>
+          <input value={caption} onChange={e => setCaption(e.target.value)} placeholder="e.g. PA #14 pre-op" style={iS} />
+        </div>
+        <button onClick={() => fileRef.current?.click()} disabled={uploading} style={{ padding:'10px 18px',borderRadius:'10px',border:'none',background:'linear-gradient(140deg,var(--c2),var(--c3))',color:'#04212a',fontWeight:600,cursor:uploading?'wait':'pointer',fontSize:'13px',fontFamily:'inherit',opacity:uploading?.6:1 }}>{uploading ? 'Uploading…' : '+ Upload image'}</button>
+        <input ref={fileRef} type="file" accept="image/*" onChange={onFile} style={{ display:'none' }} />
+      </div>
+
+      {images.length === 0 ? (
+        <div style={{ padding:'32px',textAlign:'center',borderRadius:'16px',border:'1px dashed rgba(255,255,255,.12)',color:'rgba(234,246,246,.45)',fontSize:'13.5px' }}>
+          No radiographs or photos yet.
+        </div>
+      ) : (
+        <div style={{ display:'grid',gridTemplateColumns:'repeat(auto-fill,minmax(150px,1fr))',gap:'12px' }}>
+          {images.map(img => (
+            <div key={img.id} style={{ borderRadius:'12px',overflow:'hidden',background:'rgba(0,0,0,.3)',border:'1px solid rgba(255,255,255,.1)' }}>
+              <a href={img.url} target="_blank" rel="noreferrer" style={{ display:'block' }}>
+                <img src={img.url} alt={img.caption || img.filename} style={{ width:'100%',height:'120px',objectFit:'cover',display:'block' }} />
+              </a>
+              <div style={{ padding:'8px 10px' }}>
+                <div style={{ display:'flex',justifyContent:'space-between',alignItems:'center',gap:'6px' }}>
+                  <span style={{ fontSize:'10px',letterSpacing:'.08em',textTransform:'uppercase',color:'var(--c1)' }}>{img.kind}</span>
+                  <button onClick={() => del(img.id)} style={{ background:'transparent',border:'none',color:'rgba(255,150,150,.6)',cursor:'pointer',fontSize:'12px' }}>✕</button>
+                </div>
+                <div style={{ fontSize:'12px',color:'rgba(234,246,246,.7)',marginTop:'3px',whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis' }}>{img.caption || img.filename}</div>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
+export default function PatientDetail({ patient, flaggedTeeth, onToggle, onClear, onUpdateTooth, onClose, onUpdate, onDelete, onCreateAppointment, onUpdateAppointment, onCancelAppointment, allAppts, showToast, isMobile }) {
   const [tab, setTab] = useState('overview')
 
   const tabs = [
     { id:'overview', label:'Overview' },
     { id:'chart',    label:'Tooth Chart' },
+    { id:'perio',    label:'Perio' },
     { id:'visits',   label:'Visits' },
     { id:'plan',     label:'Treatment Plan' },
+    { id:'imaging',  label:'Imaging' },
     { id:'appts',    label:'Appointments' },
     { id:'intake',   label:'Intake' },
   ]
+
+  const riskFlags = patient.risk_flags || []
 
   const statusBg = STATUS_BG[patient.status] || STATUS_BG.Active
   const statusFg = STATUS_FG[patient.status] || STATUS_FG.Active
   const nextShort = (patient.next||'—').split('·').slice(1).join('·').trim() || patient.next || '—'
 
   return (
-    <div style={{ position:'absolute',top:0,right:0,bottom:0,width:'680px',maxWidth:'96vw',zIndex:41,background:'linear-gradient(160deg,rgba(16,38,44,.94),rgba(6,16,21,.97))',backdropFilter:'blur(36px) saturate(150%)',WebkitBackdropFilter:'blur(36px) saturate(150%)',borderLeft:'1px solid color-mix(in srgb,var(--c1) 22%,transparent)',boxShadow:'-30px 0 80px rgba(0,0,0,.55)',display:'flex',flexDirection:'column',overflow:'hidden' }}>
+    <div style={ isMobile
+      ? { position:'fixed',inset:0,zIndex:41,background:'linear-gradient(160deg,rgba(16,38,44,.97),rgba(6,16,21,.99))',backdropFilter:'blur(36px) saturate(150%)',WebkitBackdropFilter:'blur(36px) saturate(150%)',display:'flex',flexDirection:'column',overflow:'hidden' }
+      : { position:'absolute',top:0,right:0,bottom:0,width:'680px',maxWidth:'96vw',zIndex:41,background:'linear-gradient(160deg,rgba(16,38,44,.94),rgba(6,16,21,.97))',backdropFilter:'blur(36px) saturate(150%)',WebkitBackdropFilter:'blur(36px) saturate(150%)',borderLeft:'1px solid color-mix(in srgb,var(--c1) 22%,transparent)',boxShadow:'-30px 0 80px rgba(0,0,0,.55)',display:'flex',flexDirection:'column',overflow:'hidden' } }>
 
       {/* Header */}
       <div style={{ padding:'26px 30px 0',flexShrink:0 }}>
@@ -612,6 +958,22 @@ export default function PatientDetail({ patient, flaggedTeeth, onToggle, onClear
             </div>
           ))}
         </div>
+
+        {/* Medical risk flags */}
+        {riskFlags.length > 0 && (
+          <div style={{ display:'flex',gap:'8px',flexWrap:'wrap',marginBottom:'16px' }}>
+            {riskFlags.map((f,i)=>{
+              const c = f.level==='high' ? {bg:'rgba(255,90,90,.12)',bd:'rgba(255,90,90,.3)',fg:'#ff9b9b'} : {bg:'rgba(247,198,168,.12)',bd:'rgba(247,198,168,.3)',fg:'#f7c6a8'}
+              return (
+                <div key={i} title={f.detail} style={{ display:'flex',alignItems:'center',gap:'7px',padding:'6px 12px',borderRadius:'20px',background:c.bg,border:`1px solid ${c.bd}` }}>
+                  <span style={{ fontSize:'11px' }}>{f.level==='high'?'⚠':'•'}</span>
+                  <span style={{ fontSize:'12px',color:c.fg,fontWeight:600 }}>{f.label}</span>
+                  <span style={{ fontSize:'11.5px',color:'rgba(234,246,246,.55)',maxWidth:'220px',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap' }}>{f.detail}</span>
+                </div>
+              )
+            })}
+          </div>
+        )}
 
         {/* Tabs */}
         <div style={{ display:'flex',gap:'2px',padding:'4px',borderRadius:'14px',background:'rgba(0,0,0,.2)',border:'1px solid rgba(255,255,255,.08)',overflowX:'auto' }}>
@@ -644,11 +1006,14 @@ export default function PatientDetail({ patient, flaggedTeeth, onToggle, onClear
                 </div>
               ))}
             </div>
+            <DifferentialHelper patient={patient} showToast={showToast} />
           </div>
         )}
         {tab==='chart' && <ToothChart flaggedTeeth={flaggedTeeth} onToggle={onToggle} onClear={onClear} onUpdateTooth={onUpdateTooth} />}
+        {tab==='perio' && <PerioTab patientId={patient.id} showToast={showToast} />}
         {tab==='visits' && <VisitsTab patientId={patient.id} showToast={showToast} />}
         {tab==='plan' && <TreatmentPlanTab patientId={patient.id} showToast={showToast} />}
+        {tab==='imaging' && <ImagingTab patientId={patient.id} showToast={showToast} />}
         {tab==='appts' && <AppointmentsTab patient={patient} allAppts={allAppts} onCreateAppointment={onCreateAppointment} onUpdateAppointment={onUpdateAppointment} onCancelAppointment={onCancelAppointment} showToast={showToast} />}
         {tab==='intake' && <IntakeTab patient={patient} onUpdate={onUpdate} />}
       </div>

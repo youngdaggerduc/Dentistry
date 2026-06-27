@@ -21,6 +21,51 @@ class PatientIn(BaseModel):
     medical_conditions: Optional[str] = None
     chief_complaint: Optional[str] = None
     referred_by: Optional[str] = None
+    asa_classification: Optional[str] = None
+
+
+# Keyword → (flag label, clinical concern, level). Surfaced chairside so the
+# student sees relevant medical risks without re-reading the whole intake.
+_MED_RISK = [
+    (('warfarin', 'coumadin', 'heparin', 'eliquis', 'apixaban', 'xarelto', 'rivaroxaban', 'plavix', 'clopidogrel', 'aspirin'),
+     'Anticoagulant', 'Bleeding risk — consider INR / haemostasis plan', 'high'),
+    (('bisphosphonate', 'alendronate', 'fosamax', 'zoledronic', 'denosumab', 'prolia'),
+     'Bisphosphonate', 'MRONJ risk with extractions / bone surgery', 'high'),
+    (('metformin', 'insulin', 'glipizide'),
+     'Diabetes meds', 'Monitor glycaemic status; healing/infection risk', 'med'),
+    (('prednisone', 'corticosteroid'),
+     'Steroid', 'Adrenal suppression; infection risk', 'med'),
+]
+_COND_RISK = [
+    (('diabet',), 'Diabetes', 'Delayed healing, infection risk', 'high'),
+    (('hypertension', 'high blood pressure'), 'Hypertension', 'Monitor BP; epinephrine caution', 'med'),
+    (('heart', 'cardiac', 'angina', 'mitral', 'valve', 'endocarditis'), 'Cardiac', 'Possible antibiotic prophylaxis', 'high'),
+    (('pregnan',), 'Pregnancy', 'Avoid certain drugs / radiographs', 'high'),
+    (('asthma',), 'Asthma', 'Avoid NSAIDs in sensitive patients; have inhaler ready', 'med'),
+    (('hepatitis', 'liver'), 'Hepatic', 'Drug metabolism / bleeding considerations', 'med'),
+    (('hiv', 'immuno'), 'Immunocompromised', 'Infection risk', 'high'),
+    (('seizure', 'epilep'), 'Seizure disorder', 'Be prepared for seizure event', 'med'),
+    (('bleeding', 'hemophilia', 'haemophilia'), 'Bleeding disorder', 'Haemostasis planning', 'high'),
+]
+
+
+def compute_risk_flags(p):
+    flags = []
+    allergies = (p.allergies or '').strip()
+    if allergies and allergies.lower() not in ('none', 'nkda', 'n/a', 'no'):
+        flags.append({'label': 'Allergy', 'detail': allergies, 'level': 'high'})
+    meds = (p.medications or '').lower()
+    for keys, label, detail, level in _MED_RISK:
+        if any(k in meds for k in keys):
+            flags.append({'label': label, 'detail': detail, 'level': level})
+    conds = (p.medical_conditions or '').lower()
+    for keys, label, detail, level in _COND_RISK:
+        if any(k in conds for k in keys):
+            flags.append({'label': label, 'detail': detail, 'level': level})
+    if p.asa_classification and p.asa_classification.upper() not in ('ASA I', 'I', '1', 'ASA1'):
+        flags.append({'label': p.asa_classification if p.asa_classification.upper().startswith('ASA') else f'ASA {p.asa_classification}',
+                      'detail': 'Elevated ASA physical status', 'level': 'med'})
+    return flags
 
 
 def _next_appt(appointments):
@@ -52,6 +97,8 @@ def _fmt(p, teeth=None, appointments=None):
         'medical_conditions': p.medical_conditions,
         'chief_complaint': p.chief_complaint,
         'referred_by': p.referred_by,
+        'asa_classification': p.asa_classification,
+        'risk_flags': compute_risk_flags(p),
         'badTeeth': [{'id': t.tooth_id, 'note': t.note, 'severity': t.severity} for t in (teeth or [])],
         'next': _next_appt(appointments or []) if appointments is not None else None,
     }

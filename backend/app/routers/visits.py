@@ -3,6 +3,7 @@ from pydantic import BaseModel
 from typing import Optional
 from app.models import Visit, ClinicalNote, Patient, CompetencyEntry
 from app.routers.auth import current_user, User
+from app import audit
 
 router = APIRouter(prefix="/api", tags=["visits"])
 
@@ -36,8 +37,15 @@ def _visit_fmt(v, note=None):
         'duration_mins': v.duration_mins,
         'faculty_supervisor': v.faculty_supervisor,
         'status': v.status,
+        'self_eval_rating': v.self_eval_rating,
+        'self_eval_note': v.self_eval_note,
         'note': _note_fmt(note) if note else None,
     }
+
+
+class SelfEvalIn(BaseModel):
+    self_eval_rating: Optional[int] = None
+    self_eval_note: Optional[str] = None
 
 
 def _note_fmt(n):
@@ -104,10 +112,22 @@ async def upsert_note(visit_id: int, data: NoteIn, user: User = Depends(current_
     v = await Visit.get_or_none(id=visit_id)
     if not v or not await Patient.exists(id=v.patient_id, student_id=user.id):
         raise HTTPException(404)
-    note, _ = await ClinicalNote.get_or_create(visit_id=visit_id, defaults=data.model_dump())
-    if not _:
+    note, created = await ClinicalNote.get_or_create(visit_id=visit_id, defaults=data.model_dump())
+    if not created:
         await note.update_from_dict(data.model_dump(exclude_none=True)).save()
+    await audit.log(user.id, 'clinical_note', note.id,
+                    'create' if created else 'update',
+                    f'SOAP note for visit {visit_id}')
     return _note_fmt(note)
+
+
+@router.patch('/visits/{visit_id}/self-eval')
+async def set_self_eval(visit_id: int, data: SelfEvalIn, user: User = Depends(current_user)):
+    v = await Visit.get_or_none(id=visit_id)
+    if not v or not await Patient.exists(id=v.patient_id, student_id=user.id):
+        raise HTTPException(404)
+    await v.update_from_dict(data.model_dump(exclude_unset=True)).save()
+    return _visit_fmt(v)
 
 
 @router.delete('/visits/{visit_id}', status_code=204)

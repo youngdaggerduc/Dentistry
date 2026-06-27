@@ -47,6 +47,38 @@ function Section({ id, title, right, children, pad = '32px 56px' }) {
   )
 }
 
+function CaseReview({ entries }) {
+  const [open, setOpen] = useState(false)
+  const [idx, setIdx] = useState(0)
+  const [show, setShow] = useState(false)
+  const deck = entries.filter(e => e.category && e.procedure_name)
+  if (deck.length === 0) return null
+  const card = deck[idx % deck.length]
+  const next = () => { setShow(false); setIdx(i => (i + 1) % deck.length) }
+
+  return (
+    <div data-reveal="" style={{ marginTop:'18px',padding:'18px 20px',borderRadius:'18px',background:'color-mix(in srgb,var(--c1) 6%,transparent)',border:'1px solid color-mix(in srgb,var(--c1) 20%,transparent)' }}>
+      <div style={{ display:'flex',alignItems:'center',justifyContent:'space-between' }}>
+        <div style={{ fontSize:'11px',letterSpacing:'.16em',textTransform:'uppercase',color:'var(--c1)' }}>Case review · self-quiz</div>
+        <button onClick={()=>setOpen(o=>!o)} style={{ padding:'5px 12px',borderRadius:'20px',border:'1px solid rgba(255,255,255,.18)',background:'transparent',color:'rgba(234,246,246,.7)',cursor:'pointer',fontSize:'11.5px',fontFamily:'inherit' }}>{open?'hide':`review ${deck.length} cases`}</button>
+      </div>
+      {open && (
+        <div style={{ marginTop:'14px',textAlign:'center' }}>
+          <div style={{ fontSize:'11px',color:'rgba(255,255,255,.4)' }}>{card.date_str} · {card.patient_name}</div>
+          <div style={{ fontFamily:"'Instrument Serif',serif",fontSize:'24px',margin:'8px 0 4px' }}>{card.procedure_name}</div>
+          <div style={{ fontSize:'12.5px',color:'rgba(234,246,246,.6)' }}>Which competency category?</div>
+          <div style={{ minHeight:'34px',marginTop:'10px' }}>
+            {show
+              ? <span style={{ fontSize:'15px',color:'#bfe9a8',fontWeight:600 }}>{card.category}</span>
+              : <button onClick={()=>setShow(true)} style={{ padding:'7px 18px',borderRadius:'20px',border:'1px solid rgba(255,255,255,.2)',background:'transparent',color:'var(--c1)',cursor:'pointer',fontSize:'13px',fontFamily:'inherit' }}>Reveal</button>}
+          </div>
+          <button onClick={next} style={{ marginTop:'12px',padding:'7px 18px',borderRadius:'20px',border:'none',background:'linear-gradient(140deg,var(--c2),var(--c3))',color:'#04212a',fontWeight:600,cursor:'pointer',fontSize:'12.5px',fontFamily:'inherit' }}>Next case →</button>
+        </div>
+      )}
+    </div>
+  )
+}
+
 function Card({ children, style }) {
   return (
     <div data-reveal="" style={{ padding:'24px',borderRadius:'20px',background:'linear-gradient(140deg,rgba(255,255,255,.08),rgba(255,255,255,.02))',backdropFilter:'blur(22px) saturate(140%)',WebkitBackdropFilter:'blur(22px) saturate(140%)',border:'1px solid rgba(255,255,255,.12)',boxShadow:'0 8px 36px rgba(0,18,26,.3)',...style }}>
@@ -56,14 +88,16 @@ function Card({ children, style }) {
 }
 
 export default function StudentView({
-  user, patients, flaggedMap, todayAppts, weekAppts, allAppts,
-  prospects, reminders, competency,
+  user, isMobile, patients, flaggedMap, todayAppts, weekAppts, allAppts,
+  prospects, reminders, competency, analytics,
   onOpenPatient, onAdvanceProspect, onAddProspect,
   onCreateAppointment, onUpdateAppointment, onCancelAppointment,
   onDismissReminder, onScrollTo, showToast, reloadCompetency,
 }) {
   const rootRef = useRef()
   useReveal(rootRef)
+
+  const sectionPad = isMobile ? '24px 18px' : undefined
 
   // Patient search & filter state
   const [search,       setSearch]       = useState('')
@@ -98,7 +132,7 @@ export default function StudentView({
     <div ref={rootRef}>
 
       {/* ── Overview ── */}
-      <Section id="overview" pad="58px 56px 28px">
+      <Section id="overview" pad={isMobile ? '30px 18px 20px' : '58px 56px 28px'}>
         <p data-reveal="" style={{ letterSpacing:'.34em',textTransform:'uppercase',fontSize:'11.5px',color:'var(--c1)',margin:'0 0 20px' }}>Student Clinical Workspace</p>
         <h1 data-reveal="" style={{ fontFamily:"'Instrument Serif',serif",fontWeight:400,fontSize:'clamp(48px,6vw,72px)',lineHeight:1.0,margin:0 }}>
           Good morning,<br /><span style={{ fontStyle:'italic',color:'var(--c2)' }}>{user?.name?.split(' ')[0] || 'Sana'}.</span>
@@ -128,7 +162,7 @@ export default function StudentView({
           </div>
         )}
 
-        <div style={{ display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:'18px',marginTop:'32px' }}>
+        <div style={{ display:'grid',gridTemplateColumns:isMobile?'repeat(2,1fr)':'repeat(4,1fr)',gap:isMobile?'12px':'18px',marginTop:'32px' }}>
           {stats.map(s => (
             <Card key={s.label}>
               <div style={{ fontFamily:"'Instrument Serif',serif",fontSize:'46px',lineHeight:1,color:'#dffbfa' }}>{s.value}</div>
@@ -164,10 +198,10 @@ export default function StudentView({
       </Section>
 
       {/* ── Patients ── */}
-      <Section id="patients" title="Your patients" right={<span style={{ fontSize:'13px',color:'rgba(255,255,255,.5)' }}>{filteredPatients.length} shown</span>}>
+      <Section id="patients" pad={sectionPad} title="Your patients" right={<span style={{ fontSize:'13px',color:'rgba(255,255,255,.5)' }}>{filteredPatients.length} shown</span>}>
         {/* Search + filters */}
-        <div data-reveal="" style={{ display:'flex',gap:'12px',marginBottom:'20px',alignItems:'center' }}>
-          <div style={{ flex:1,position:'relative' }}>
+        <div data-reveal="" style={{ display:'flex',gap:'12px',marginBottom:'20px',alignItems:'center',flexWrap:isMobile?'wrap':'nowrap' }}>
+          <div style={{ flex:isMobile?'1 0 100%':1,position:'relative' }}>
             <span style={{ position:'absolute',left:'13px',top:'50%',transform:'translateY(-50%)',fontSize:'14px',color:'rgba(255,255,255,.35)',pointerEvents:'none' }}>🔍</span>
             <input
               value={search}
@@ -182,7 +216,7 @@ export default function StudentView({
             </button>
           ))}
         </div>
-        <div style={{ display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:'18px' }}>
+        <div style={{ display:'grid',gridTemplateColumns:'repeat(auto-fill,minmax(min(100%,240px),1fr))',gap:'18px' }}>
           {filteredPatients.map(p => (
             <PatientCard key={p.id} patient={p} flaggedCount={(flaggedMap[p.id]||[]).length} onOpen={() => onOpenPatient(p.id)} />
           ))}
@@ -195,8 +229,9 @@ export default function StudentView({
       </Section>
 
       {/* ── Calendar ── */}
-      <Section id="calendar" title="Calendar" right={<span style={{ fontSize:'13px',color:'var(--c1)' }}>{weekAppts.length} upcoming this week</span>}>
-        <div data-reveal="" style={{ borderRadius:'20px',overflow:'hidden',background:'linear-gradient(140deg,rgba(255,255,255,.06),rgba(255,255,255,.015))',backdropFilter:'blur(20px)',WebkitBackdropFilter:'blur(20px)',border:'1px solid rgba(255,255,255,.12)' }}>
+      <Section id="calendar" pad={sectionPad} title="Calendar" right={<span style={{ fontSize:'13px',color:'var(--c1)' }}>{weekAppts.length} upcoming this week</span>}>
+        <div data-reveal="" style={{ borderRadius:'20px',overflowX:'auto',overflowY:'hidden',background:'linear-gradient(140deg,rgba(255,255,255,.06),rgba(255,255,255,.015))',backdropFilter:'blur(20px)',WebkitBackdropFilter:'blur(20px)',border:'1px solid rgba(255,255,255,.12)' }}>
+          <div style={{ minWidth:'560px' }}>
           <div style={{ display:'grid',gridTemplateColumns:'80px 90px 1fr 1fr 100px 90px',gap:'12px',padding:'14px 22px',fontSize:'10.5px',letterSpacing:'.14em',textTransform:'uppercase',color:'rgba(234,246,246,.4)',borderBottom:'1px solid rgba(255,255,255,.08)' }}>
             <span>Date</span><span>Time</span><span>Patient</span><span>Procedure</span><span>Room</span><span>Status</span>
           </div>
@@ -220,6 +255,7 @@ export default function StudentView({
               </div>
             )
           })}
+          </div>
         </div>
 
         {/* Upcoming bookings (beyond this week) — from weekData static for now */}
@@ -244,7 +280,7 @@ export default function StudentView({
       </Section>
 
       {/* ── Prospects ── */}
-      <Section id="prospects" title="Prospect pipeline" right={
+      <Section id="prospects" pad={sectionPad} title="Prospect pipeline" right={
         <button onClick={() => setAddProspectOpen(v=>!v)} style={{ padding:'8px 16px',borderRadius:'20px',border:'1px solid rgba(255,255,255,.18)',background:'transparent',color:'var(--c1)',cursor:'pointer',fontSize:'12.5px',fontFamily:'inherit' }}>+ Add lead</button>
       }>
         {addProspectOpen && (
@@ -304,7 +340,7 @@ export default function StudentView({
       </Section>
 
       {/* ── Competency ── */}
-      <Section id="competency" title="Competency requirements" right={
+      <Section id="competency" pad={sectionPad} title="Competency requirements" right={
         <button
           onClick={() => exportCompetencyPDF(competency, user?.name, user?.year)}
           style={{ display:'flex',alignItems:'center',gap:'7px',padding:'8px 16px',borderRadius:'20px',border:'1px solid rgba(255,255,255,.18)',background:'transparent',color:'rgba(234,246,246,.8)',cursor:'pointer',fontSize:'12.5px',fontFamily:'inherit',transition:'all .2s' }}
@@ -314,7 +350,7 @@ export default function StudentView({
           <span>↓</span> Export PDF
         </button>
       }>
-        <div style={{ display:'grid',gridTemplateColumns:'1fr 1.6fr',gap:'18px' }}>
+        <div style={{ display:'grid',gridTemplateColumns:isMobile?'1fr':'1fr 1.6fr',gap:'18px' }}>
           {/* Summary bars */}
           <Card>
             <div style={{ fontSize:'11px',letterSpacing:'.16em',textTransform:'uppercase',color:'var(--c1)',marginBottom:'20px' }}>Progress overview</div>
@@ -355,10 +391,11 @@ export default function StudentView({
             </div>
           </div>
         </div>
+        <CaseReview entries={competency.entries} />
       </Section>
 
       {/* ── Reminders ── */}
-      <Section id="reminders" title="Reminders" pad="32px 56px 90px">
+      <Section id="reminders" title="Reminders" pad={isMobile ? '24px 18px 90px' : '32px 56px 90px'}>
         {reminders.length === 0 ? (
           <div data-reveal="" style={{ padding:'36px',textAlign:'center',borderRadius:'18px',background:'rgba(255,255,255,.03)',border:'1px dashed rgba(255,255,255,.12)',color:'rgba(234,246,246,.45)',fontSize:'14px' }}>
             All caught up — no active reminders.
@@ -386,6 +423,129 @@ export default function StudentView({
               )
             })}
           </div>
+        )}
+      </Section>
+
+      {/* ── Analytics ── */}
+      <Section id="analytics" pad={isMobile ? '24px 18px 90px' : '32px 56px 90px'} title="Progress analytics"
+        right={analytics?.avg_time_to_close != null
+          ? <span style={{ fontSize:'13px',color:'var(--c1)' }}>~{analytics.avg_time_to_close}d avg time to close</span>
+          : null}>
+        {!analytics ? (
+          <div data-reveal="" style={{ padding:'36px',textAlign:'center',borderRadius:'18px',background:'rgba(255,255,255,.03)',border:'1px dashed rgba(255,255,255,.12)',color:'rgba(234,246,246,.45)',fontSize:'14px' }}>
+            No analytics yet — log a few visits to see your progress.
+          </div>
+        ) : (
+          <>
+            {/* Cases per month bar chart */}
+            <Card style={{ marginBottom:'18px' }}>
+              <div style={{ fontSize:'11px',letterSpacing:'.16em',textTransform:'uppercase',color:'var(--c1)',marginBottom:'20px' }}>Cases per month</div>
+              {analytics.cases_per_month.length === 0 ? (
+                <div style={{ color:'rgba(234,246,246,.4)',fontSize:'13.5px' }}>No completed visits yet.</div>
+              ) : (() => {
+                const max = Math.max(...analytics.cases_per_month.map(m => m.count), 1)
+                return (
+                  <div style={{ display:'flex',alignItems:'flex-end',gap:'10px',height:'160px' }}>
+                    {analytics.cases_per_month.map(m => {
+                      const [y, mo] = m.month.split('-')
+                      const label = new Date(Number(y), Number(mo)-1, 1).toLocaleDateString('en-US',{month:'short'})
+                      return (
+                        <div key={m.month} style={{ flex:1,display:'flex',flexDirection:'column',alignItems:'center',gap:'8px',height:'100%',justifyContent:'flex-end' }}>
+                          <span style={{ fontSize:'12px',color:'rgba(255,255,255,.55)',fontVariantNumeric:'tabular-nums' }}>{m.count}</span>
+                          <div style={{ width:'100%',maxWidth:'42px',height:`${(m.count/max)*100}%`,minHeight:'4px',borderRadius:'7px 7px 3px 3px',background:'linear-gradient(180deg,var(--c2),var(--c3))',transition:'height 1s ease' }} />
+                          <span style={{ fontSize:'10.5px',color:'rgba(255,255,255,.4)' }}>{label}</span>
+                        </div>
+                      )
+                    })}
+                  </div>
+                )
+              })()}
+            </Card>
+
+            <div style={{ display:'grid',gridTemplateColumns:isMobile?'1fr':'1fr 1fr',gap:'18px',marginBottom:'18px' }}>
+              {/* Common procedures */}
+              <Card>
+                <div style={{ fontSize:'11px',letterSpacing:'.16em',textTransform:'uppercase',color:'var(--c1)',marginBottom:'16px' }}>Most common procedures</div>
+                {analytics.common_procedures.length === 0
+                  ? <div style={{ color:'rgba(234,246,246,.4)',fontSize:'13px' }}>None logged yet.</div>
+                  : analytics.common_procedures.map(p => {
+                      const max = analytics.common_procedures[0].count
+                      return (
+                        <div key={p.name} style={{ marginBottom:'12px' }}>
+                          <div style={{ display:'flex',justifyContent:'space-between',fontSize:'13px',marginBottom:'6px' }}>
+                            <span style={{ overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap',marginRight:'10px' }}>{p.name}</span>
+                            <span style={{ color:'rgba(255,255,255,.5)' }}>{p.count}</span>
+                          </div>
+                          <div style={{ height:'6px',borderRadius:'6px',background:'rgba(255,255,255,.1)',overflow:'hidden' }}>
+                            <div style={{ height:'100%',width:`${(p.count/max)*100}%`,borderRadius:'6px',background:'linear-gradient(90deg,var(--c2),var(--c3))' }} />
+                          </div>
+                        </div>
+                      )
+                    })}
+              </Card>
+
+              {/* Common conditions */}
+              <Card>
+                <div style={{ fontSize:'11px',letterSpacing:'.16em',textTransform:'uppercase',color:'var(--c1)',marginBottom:'16px' }}>Most charted conditions</div>
+                {analytics.common_conditions.length === 0
+                  ? <div style={{ color:'rgba(234,246,246,.4)',fontSize:'13px' }}>No teeth charted yet.</div>
+                  : analytics.common_conditions.map(c => (
+                      <div key={c.condition} style={{ display:'flex',justifyContent:'space-between',alignItems:'center',padding:'9px 0',borderBottom:'1px solid rgba(255,255,255,.06)' }}>
+                        <span style={{ fontSize:'13.5px',textTransform:'capitalize' }}>{c.condition}</span>
+                        <span style={{ fontSize:'12px',color:'var(--c1)',padding:'2px 9px',borderRadius:'20px',background:'rgba(123,224,214,.12)' }}>{c.count}</span>
+                      </div>
+                    ))}
+              </Card>
+            </div>
+
+            {/* Clinical hours + self-eval */}
+            <div style={{ display:'grid',gridTemplateColumns:isMobile?'1fr':'1.6fr 1fr',gap:'18px',marginBottom:'18px' }}>
+              <Card>
+                <div style={{ display:'flex',justifyContent:'space-between',alignItems:'baseline',marginBottom:'16px' }}>
+                  <div style={{ fontSize:'11px',letterSpacing:'.16em',textTransform:'uppercase',color:'var(--c1)' }}>Clinical hours by discipline</div>
+                  <div style={{ fontSize:'13px',color:'rgba(234,246,246,.7)' }}>{analytics.total_hours || 0} h total</div>
+                </div>
+                {(!analytics.clinical_hours || analytics.clinical_hours.length===0)
+                  ? <div style={{ color:'rgba(234,246,246,.4)',fontSize:'13px' }}>Log visit durations to track hours.</div>
+                  : analytics.clinical_hours.map(h => {
+                      const max = analytics.clinical_hours[0].hours || 1
+                      return (
+                        <div key={h.category} style={{ marginBottom:'11px' }}>
+                          <div style={{ display:'flex',justifyContent:'space-between',fontSize:'13px',marginBottom:'5px' }}>
+                            <span>{h.category}</span><span style={{ color:'rgba(255,255,255,.5)' }}>{h.hours} h</span>
+                          </div>
+                          <div style={{ height:'6px',borderRadius:'6px',background:'rgba(255,255,255,.1)',overflow:'hidden' }}>
+                            <div style={{ height:'100%',width:`${(h.hours/max)*100}%`,borderRadius:'6px',background:'linear-gradient(90deg,var(--c2),var(--c3))' }} />
+                          </div>
+                        </div>
+                      )
+                    })}
+              </Card>
+              <Card>
+                <div style={{ fontSize:'11px',letterSpacing:'.16em',textTransform:'uppercase',color:'var(--c1)',marginBottom:'16px' }}>Self-evaluation</div>
+                <div style={{ fontFamily:"'Instrument Serif',serif",fontSize:'46px',lineHeight:1,color:'#dffbfa' }}>
+                  {analytics.avg_self_eval != null ? analytics.avg_self_eval : '—'}<span style={{ fontSize:'20px',color:'rgba(255,255,255,.4)' }}> / 5</span>
+                </div>
+                <div style={{ marginTop:'10px',fontSize:'12.5px',color:'rgba(234,246,246,.6)' }}>Average self-rating across {analytics.self_evals_logged || 0} reflected visit{analytics.self_evals_logged===1?'':'s'}.</div>
+                <div style={{ marginTop:'8px',fontSize:'11.5px',color:'rgba(255,255,255,.4)' }}>Rate visits in the patient's Visits tab to build this.</div>
+              </Card>
+            </div>
+
+            {/* Competency completion timeline */}
+            <Card>
+              <div style={{ fontSize:'11px',letterSpacing:'.16em',textTransform:'uppercase',color:'var(--c1)',marginBottom:'16px' }}>Competency completion timeline</div>
+              {analytics.competency_timeline.map(t => (
+                <div key={t.category} style={{ display:'flex',alignItems:'center',gap:'12px',padding:'10px 0',borderBottom:'1px solid rgba(255,255,255,.06)' }}>
+                  <span style={{ width:'9px',height:'9px',borderRadius:'50%',flexShrink:0,background:t.completed_on?'#bfe9a8':'rgba(255,255,255,.2)' }} />
+                  <span style={{ flex:1,fontSize:'13.5px' }}>{t.category}</span>
+                  <span style={{ fontSize:'12px',color:'rgba(255,255,255,.5)' }}>{t.completed}/{t.required}</span>
+                  <span style={{ fontSize:'12px',color:t.completed_on?'#bfe9a8':'rgba(255,255,255,.35)',width:'96px',textAlign:'right' }}>
+                    {t.completed_on ? `done ${t.completed_on}` : 'in progress'}
+                  </span>
+                </div>
+              ))}
+            </Card>
+          </>
         )}
       </Section>
     </div>

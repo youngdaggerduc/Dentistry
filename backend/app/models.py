@@ -32,6 +32,7 @@ class Patient(models.Model):
     medical_conditions = fields.TextField(null=True)
     chief_complaint = fields.TextField(null=True)
     referred_by = fields.CharField(max_length=255, null=True)
+    asa_classification = fields.CharField(max_length=10, null=True)  # ASA I–VI (Phase 6)
     created_at = fields.DatetimeField(auto_now_add=True)
 
     class Meta:
@@ -44,6 +45,7 @@ class FlaggedTooth(models.Model):
     tooth_id = fields.CharField(max_length=10)
     note = fields.CharField(max_length=255, default='caries')
     severity = fields.CharField(max_length=50, default='moderate')  # mild | moderate | severe
+    deleted_at = fields.CharField(max_length=30, null=True)  # soft delete (Phase 8)
 
     class Meta:
         table = "flagged_teeth"
@@ -78,6 +80,8 @@ class Visit(models.Model):
     duration_mins = fields.IntField(null=True)
     faculty_supervisor = fields.CharField(max_length=255, null=True)
     status = fields.CharField(max_length=30, default='completed')  # completed | no_show | cancelled
+    self_eval_rating = fields.IntField(null=True)   # 1–5 student self-assessment (Phase 7)
+    self_eval_note = fields.TextField(null=True)    # reflection (Phase 7)
 
     class Meta:
         table = "visits"
@@ -92,6 +96,7 @@ class ClinicalNote(models.Model):
     plan = fields.TextField(null=True)
     created_at = fields.DatetimeField(auto_now_add=True)
     updated_at = fields.DatetimeField(auto_now=True)
+    deleted_at = fields.CharField(max_length=30, null=True)  # soft delete (Phase 8)
 
     class Meta:
         table = "clinical_notes"
@@ -116,6 +121,10 @@ class TreatmentStep(models.Model):
     description = fields.CharField(max_length=500)
     status = fields.CharField(max_length=30, default='pending')  # pending | in_progress | completed
     completed_at = fields.CharField(max_length=30, null=True)
+    cdt_code = fields.CharField(max_length=10, null=True)   # ADA CDT D-code (Phase 6)
+    tooth = fields.CharField(max_length=10, null=True)      # optional tooth this step targets
+    fee = fields.FloatField(null=True)                      # estimated fee (Phase 6)
+    deleted_at = fields.CharField(max_length=30, null=True)  # soft delete (Phase 8)
 
     class Meta:
         table = "treatment_steps"
@@ -163,3 +172,68 @@ class Prospect(models.Model):
 
     class Meta:
         table = "prospects"
+
+
+# ── Periodontal Charting (Phase 6) ────────────────────────────────────────────
+
+class PerioExam(models.Model):
+    id = fields.IntField(pk=True)
+    patient = fields.ForeignKeyField('models.Patient', related_name='perio_exams', on_delete=fields.CASCADE)
+    date_str = fields.CharField(max_length=30)
+    note = fields.TextField(null=True)
+    created_at = fields.DatetimeField(auto_now_add=True)
+
+    class Meta:
+        table = "perio_exams"
+
+
+class PerioMeasurement(models.Model):
+    """One tooth's readings within an exam. Pocket depths and recession are stored
+    as 3 buccal + 3 lingual sites (mesial/mid/distal) — the standard 6-point probe."""
+    id = fields.IntField(pk=True)
+    exam = fields.ForeignKeyField('models.PerioExam', related_name='measurements', on_delete=fields.CASCADE)
+    tooth_id = fields.CharField(max_length=10)
+    # 6 pocket-depth sites in mm, ordered: buccal-mesial, buccal-mid, buccal-distal,
+    # lingual-mesial, lingual-mid, lingual-distal. Stored comma-joined for SQLite simplicity.
+    pockets = fields.CharField(max_length=60, null=True)
+    recession = fields.CharField(max_length=60, null=True)
+    bleeding = fields.CharField(max_length=60, null=True)   # 6 sites, '1'/'0'
+    mobility = fields.IntField(null=True)                   # 0–3 (Miller)
+    furcation = fields.IntField(null=True)                  # 0–3
+    plaque = fields.BooleanField(default=False)
+
+    class Meta:
+        table = "perio_measurements"
+        unique_together = (('exam_id', 'tooth_id'),)
+
+
+# ── Imaging / Attachments (Phase 6) ───────────────────────────────────────────
+
+class ImageAsset(models.Model):
+    id = fields.IntField(pk=True)
+    patient = fields.ForeignKeyField('models.Patient', related_name='images', on_delete=fields.CASCADE)
+    visit = fields.ForeignKeyField('models.Visit', related_name='images', on_delete=fields.SET_NULL, null=True)
+    tooth_id = fields.CharField(max_length=10, null=True)
+    kind = fields.CharField(max_length=30, default='radiograph')  # radiograph | photo | other
+    filename = fields.CharField(max_length=255)
+    path = fields.CharField(max_length=500)   # served under /uploads/...
+    caption = fields.CharField(max_length=255, null=True)
+    created_at = fields.DatetimeField(auto_now_add=True)
+
+    class Meta:
+        table = "image_assets"
+
+
+# ── Audit Log (Phase 8) ───────────────────────────────────────────────────────
+
+class AuditLog(models.Model):
+    id = fields.IntField(pk=True)
+    user = fields.ForeignKeyField('models.User', related_name='audit_entries', on_delete=fields.SET_NULL, null=True)
+    entity = fields.CharField(max_length=50)     # clinical_note | treatment_step | flagged_tooth
+    entity_id = fields.IntField()
+    action = fields.CharField(max_length=20)     # create | update | delete
+    summary = fields.CharField(max_length=500, null=True)
+    created_at = fields.DatetimeField(auto_now_add=True)
+
+    class Meta:
+        table = "audit_log"

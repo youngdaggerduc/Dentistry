@@ -17,14 +17,34 @@ class StepIn(BaseModel):
     description: str
     order: int = 0
     status: str = 'pending'
+    cdt_code: Optional[str] = None
+    tooth: Optional[str] = None
+    fee: Optional[float] = None
+
+
+class StepPatch(BaseModel):
+    status: Optional[str] = None
+    description: Optional[str] = None
+    cdt_code: Optional[str] = None
+    tooth: Optional[str] = None
+    fee: Optional[float] = None
 
 
 def _step_fmt(s):
-    return {'id': s.id, 'order': s.order, 'description': s.description, 'status': s.status, 'completed_at': s.completed_at}
+    return {
+        'id': s.id, 'order': s.order, 'description': s.description, 'status': s.status,
+        'completed_at': s.completed_at, 'cdt_code': s.cdt_code, 'tooth': s.tooth, 'fee': s.fee,
+    }
 
 
 def _plan_fmt(p, steps=None):
-    return {'id': p.id, 'patient_id': p.patient_id, 'title': p.title, 'status': p.status, 'steps': [_step_fmt(s) for s in (steps or [])]}
+    steps = steps or []
+    estimate = round(sum(s.fee or 0 for s in steps), 2)
+    return {
+        'id': p.id, 'patient_id': p.patient_id, 'title': p.title, 'status': p.status,
+        'estimate': estimate,
+        'steps': [_step_fmt(s) for s in steps],
+    }
 
 
 @router.get('/patients/{patient_id}/plans')
@@ -84,6 +104,26 @@ async def update_step(plan_id: int, step_id: int, status: str, user: User = Depe
     elif status != 'completed':
         s.completed_at = None
     await s.save()
+    return _step_fmt(s)
+
+
+@router.put('/plans/{plan_id}/steps/{step_id}')
+async def edit_step(plan_id: int, step_id: int, data: StepPatch, user: User = Depends(current_user)):
+    """Full-field step edit (description, CDT code, tooth, fee, status)."""
+    from datetime import date
+    p = await TreatmentPlan.get_or_none(id=plan_id)
+    if not p or not await Patient.exists(id=p.patient_id, student_id=user.id):
+        raise HTTPException(404)
+    s = await TreatmentStep.get_or_none(id=step_id, plan_id=plan_id)
+    if not s:
+        raise HTTPException(404)
+    patch = data.model_dump(exclude_unset=True)
+    if 'status' in patch:
+        if patch['status'] == 'completed' and not s.completed_at:
+            s.completed_at = date.today().isoformat()
+        elif patch['status'] != 'completed':
+            s.completed_at = None
+    await s.update_from_dict(patch).save()
     return _step_fmt(s)
 
 

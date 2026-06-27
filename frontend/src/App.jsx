@@ -3,6 +3,7 @@ import './App.css'
 
 import { palettes, TONE } from './data.js'
 import { api, setToken, clearToken } from './api.js'
+import { useIsMobile } from './useIsMobile.js'
 import BgCanvas        from './components/BgCanvas.jsx'
 import LoginScreen     from './components/LoginScreen.jsx'
 import Sidebar         from './components/Sidebar.jsx'
@@ -10,6 +11,7 @@ import StudentView     from './components/StudentView.jsx'
 import PatientDetail   from './components/PatientDetail.jsx'
 import AddPatientModal from './components/AddPatientModal.jsx'
 import NotificationPanel from './components/NotificationPanel.jsx'
+import CommandPalette   from './components/CommandPalette.jsx'
 
 export default function App() {
   const [screen,     setScreen]     = useState('login')
@@ -25,17 +27,20 @@ export default function App() {
   const [prospects,  setProspects]  = useState([])
   const [reminders,  setReminders]  = useState([])
   const [competency, setCompetency] = useState({ summary: [], entries: [] })
+  const [analytics,  setAnalytics]  = useState(null)
 
   // UI state
   const [selectedId,    setSelectedId]    = useState(null)
   const [addOpen,       setAddOpen]       = useState(false)
   const [notifOpen,     setNotifOpen]     = useState(false)
+  const [searchOpen,    setSearchOpen]    = useState(false)
   const [loading,       setLoading]       = useState(false)
   const [error,         setError]         = useState(null)
   const [toast,         setToast]         = useState(null)
   const [activeSection, setActiveSection] = useState('overview')
 
   const palette  = palettes[paletteIdx]
+  const isMobile = useIsMobile()
   const mouseRef = useRef({ x: 0.5, y: 0.5 })
   const orb1Ref  = useRef()
   const orb2Ref  = useRef()
@@ -64,11 +69,22 @@ export default function App() {
     return () => window.removeEventListener('auth:expired', onExpiry)
   }, [])
 
+  useEffect(() => {
+    const onKey = (e) => {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
+        e.preventDefault()
+        if (screen === 'app') setSearchOpen(v => !v)
+      }
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [screen])
+
   async function loadAll() {
     setLoading(true)
     setError(null)
     try {
-      const [pts, today, week, all, prpts, rems, comp] = await Promise.all([
+      const [pts, today, week, all, prpts, rems, comp, anlx] = await Promise.all([
         api.patients.list(),
         api.appointments.today(),
         api.appointments.week(),
@@ -76,6 +92,7 @@ export default function App() {
         api.prospects.list(),
         api.reminders.list(),
         api.competency.get(),
+        api.analytics(),
       ])
       applyPatients(pts)
       setTodayAppts(today)
@@ -84,6 +101,7 @@ export default function App() {
       setProspects(prpts)
       setReminders(rems)
       setCompetency(comp)
+      setAnalytics(anlx)
     } catch (e) {
       setError('Could not load clinic data.')
     } finally {
@@ -293,6 +311,7 @@ export default function App() {
     { num:'04', label:'Prospects',   id:'prospects'  },
     { num:'05', label:'Competency',  id:'competency' },
     { num:'06', label:'Reminders',   id:'reminders'  },
+    { num:'07', label:'Analytics',   id:'analytics'  },
   ]
 
   const selectedPatient = patients.find(p => p.id === selectedId)
@@ -328,9 +347,11 @@ export default function App() {
             onLogout={logout}
             onBell={() => setNotifOpen(v => !v)}
             reminderCount={pendingReminders.length}
+            isMobile={isMobile}
+            onOpenSearch={() => setSearchOpen(true)}
           />
 
-          <main id="en-scroller" style={{ flex:1,overflowY:'auto',overflowX:'hidden',position:'relative' }}>
+          <main id="en-scroller" style={{ flex:1,overflowY:'auto',overflowX:'hidden',position:'relative',paddingBottom:isMobile?'78px':0 }}>
             {loading && (
               <div style={{ display:'flex',alignItems:'center',justifyContent:'center',height:'100%',flexDirection:'column',gap:'16px' }}>
                 <div style={{ width:'40px',height:'40px',borderRadius:'50%',border:'3px solid rgba(255,255,255,.1)',borderTopColor:'var(--c1)',animation:'enSpin 0.8s linear infinite' }} />
@@ -349,6 +370,7 @@ export default function App() {
             {!loading && !error && (
               <StudentView
                 user={user}
+                isMobile={isMobile}
                 patients={patients}
                 flaggedMap={flaggedMap}
                 todayAppts={todayAppts}
@@ -357,6 +379,7 @@ export default function App() {
                 prospects={prospects}
                 reminders={pendingReminders}
                 competency={competency}
+                analytics={analytics}
                 onOpenPatient={(id) => setSelectedId(id)}
                 onAdvanceProspect={advanceProspect}
                 onAddProspect={addProspect}
@@ -378,6 +401,7 @@ export default function App() {
           <div onClick={() => setSelectedId(null)} style={{ position:'absolute',inset:0,zIndex:40,background:'rgba(2,8,11,.55)',backdropFilter:'blur(3px)',WebkitBackdropFilter:'blur(3px)' }} />
           <PatientDetail
             key={selectedId}
+            isMobile={isMobile}
             patient={selectedPatient}
             flaggedTeeth={flaggedMap[selectedId] || []}
             onToggle={toggleTooth}
@@ -411,6 +435,14 @@ export default function App() {
             onClose={() => setNotifOpen(false)}
           />
         </>
+      )}
+
+      {screen === 'app' && (
+        <CommandPalette
+          open={searchOpen}
+          onClose={() => setSearchOpen(false)}
+          onOpenPatient={(id) => setSelectedId(id)}
+        />
       )}
 
       {toast && (
